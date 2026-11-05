@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A transparent sandbox for fiat-funded agent payments on Whitechain Sepolia.">
+  <title>Relay — Agent payment lab</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" type="module"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Relay home"><span class="brand-mark" aria-hidden="true">↗</span> relay<span class="brand-tag">PAYMENT LAB</span></a>
+    <span class="network"><span class="dot"></span> Whitechain Sepolia <span class="network-id">1874</span></span>
+  </header>
+  <main>
+    <div class="eyebrow">FIAT IN. AGENT ACTION OUT.</div>
+    <section class="intro" aria-labelledby="page-title">
+      <div><h1 id="page-title">Give your agent<br>a spending budget.</h1><p class="lead">Start with a sandbox payment. Fund an agent.<br>Let it pay for a service while your business covers gas.</p></div>
+      <div class="mode-label"><span class="pulse"></span><span id="mode">Connecting…</span><span class="mode-sub">A test environment. No real fiat conversion.</span></div>
+    </section>
+    <div class="notice"><span aria-hidden="true">ⓘ</span><p id="disclosure">Loading environment…</p></div>
+    <section class="workspace" aria-label="Payment controls">
+      <article class="card budget-card">
+        <div class="card-heading"><h2>Agent wallet</h2><span class="tag">CUSTODIAL DEMO</span></div>
+        <div class="balance-label">AVAILABLE TO SPEND</div>
+        <div class="balance"><span id="available">—</span><span class="currency">test USDT</span></div>
+        <div class="balance-meta">Wallet balance <span id="chain-balance">—</span> test USDT <span class="separator">/</span> No WBT needed by the agent</div>
+        <div class="wallet-address"><span class="wallet-icon" aria-hidden="true">▣</span><code id="wallet">Creating your agent wallet…</code><button id="copy-wallet" class="copy" aria-label="Copy agent wallet address" title="Copy wallet address">⧉</button></div>
+        <div class="divider"></div>
+        <div class="step-label"><span>01</span> FUND YOUR AGENT</div>
+        <div class="allocation"><strong>₹100 <span>→</span> 1 <small>test USDT</small></strong><span>Fixed demo allocation</span></div>
+        <button id="topup" class="button primary" disabled><span id="topup-label">Start sandbox payment</span><span aria-hidden="true">↗</span></button>
+        <p class="fine-print">This is a demo allocation, not a currency exchange. Your budget becomes available after funding is confirmed.</p>
+      </article>
+      <article class="card service-card">
+        <div class="card-heading"><h2>Agent marketplace</h2><span class="tag light">ONE SAMPLE SERVICE</span></div>
+        <div class="service-symbol" aria-hidden="true">⌁</div>
+        <div class="service-title"><div><span class="eyebrow small">PAY-PER-CALL API</span><h3>Payment readiness report</h3></div><span class="price">0.1<small>test USDT / call</small></span></div>
+        <p class="service-description">A deterministic sample report that demonstrates an agent buying access to a paid API. The report unlocks only after payment settles.</p>
+        <div class="service-features"><span><i aria-hidden="true">✓</i> Agent signs the authorization</span><span><i aria-hidden="true">✓</i> Business relayer pays WBT gas</span><span><i aria-hidden="true">✓</i> Budget checked before every purchase</span></div>
+        <div class="step-label"><span>02</span> LET YOUR AGENT PAY</div>
+        <button id="buy" class="button secondary" disabled><span>Buy report with agent</span><span aria-hidden="true">→</span></button>
+        <p class="fine-print" id="x402-note">Direct EIP-3009 payment flow. x402 is gated on real settlement checks.</p>
+      </article>
+    </section>
+    <section class="flow" aria-label="How the payment works"><span><b>01</b> Sandbox payment</span><i aria-hidden="true">→</i><span><b>02</b> Verified credit</span><i aria-hidden="true">→</i><span><b>03</b> Treasury funds agent</span><i aria-hidden="true">→</i><span><b>04</b> Agent pays service</span></section>
+    <section class="activity-section" aria-labelledby="activity-title">
+      <div class="section-heading"><div><span class="eyebrow small">FOLLOW THE MONEY</span><h2 id="activity-title">Payment activity</h2></div><button id="refresh" class="text-button">Refresh ↻</button></div>
+      <div id="activity" class="activity"><p class="empty">Your payment trail starts here.<br><span>Fund your agent to see each step of the flow.</span></p></div>
+    </section>
+    <section id="report-panel" class="report-panel" hidden aria-labelledby="report-title"><div class="eyebrow small">PURCHASE COMPLETE</div><h2 id="report-title">Your agent’s report</h2><p id="report-summary"></p><ul id="report-checks"></ul><p class="fine-print">Sample content for the hackathon demo. Not a security audit.</p></section>
+    <p id="status" role="status" aria-live="polite"></p>
+    <footer><span>relay <span class="footer-dot">·</span> Built for agents. Paid by people.</span><a href="https://explorer.testnet.whitechain.io/token/0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7" target="_blank" rel="noreferrer">Whitechain test USDT ↗</a></footer>
+  </main>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "whitechain-agent-payments",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env app/server.js",
+    "test": "node --test app/*.test.js",
+    "check:chain": "node --env-file-if-exists=.env app/check-chain.js"
+  },
+  "dependencies": { "ethers": "^6.16.0", "express": "^5.1.0" }
+}
