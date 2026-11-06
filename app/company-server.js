@@ -57,6 +57,7 @@ export function createCompanyApp(company, origin, { guest = false } = {}) {
   app.use(express.static(join(dirname(fileURLToPath(import.meta.url)), 'company-public')));
   app.use((error, req, res, next) => {
     if (res.headersSent) return next(error);
+    if(['TIMEOUT','NETWORK_ERROR','ECONNRESET','ETIMEDOUT'].includes(error.code))return res.status(503).json({error:'A live chain connection timed out before this request completed. Your saved proposal and confirmed credit are retained. Retry the same action; do not repeat checkout.'});
     const status = error.status || 500;
     res.status(status).json({ error: status < 500 ? error.message : 'Request paused. Check vendor services and signer configuration; retrying the same mission does not duplicate existing orders.' });
   });

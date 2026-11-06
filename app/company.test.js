@@ -39,6 +39,14 @@ test('requesting Finance again resumes the same untouched failed proposal withou
  company.agentStore.checkpoint(runId,{state:'failed',calls:1});await company.requestFinanceProposal();assert.equal(company.agentStore.run(runId).state,'failed','A run with tool decisions needs explicit saved-run recovery');
 });
 
+test('approval retries a transient live balance read and enqueues each saved allocation only once',async t=>{
+ let timeout=false,failedReads=0;
+ const {company}=await setup(t,{chainFactory:async(db,config)=>{const chain=createSimulatedCompanyChain(db,config);return{...chain,snapshot:async()=>{if(timeout){timeout=false;failedReads++;throw Object.assign(new Error('RPC timeout'),{code:'TIMEOUT'})}return chain.snapshot()}}}});
+ await fund(company);const proposal=await company.proposeAllocation({marketing:'300000',support:'100000',finance:'0'},'Task-based allocation','approval-recovery');timeout=true;
+ await company.allocate(proposal.id);await company.allocate(proposal.id);assert.equal(failedReads,1);assert.equal(company.db.prepare("SELECT COUNT(*) n FROM company_jobs WHERE kind='allocation'").get().n,2);assert.equal(company.db.prepare('SELECT state FROM finance_proposals WHERE id=?').get(proposal.id).state,'approved');
+ await company.processJobs();assert.equal(String(await company.chain.balance(company.departments[0].address)),'300000');assert.equal(String(await company.chain.balance(company.departments[1].address)),'100000');
+});
+
 test('founder employment requests queue without a browser wallet and pending removal blocks new work',async t=>{
  const controller='0x0000000000000000000000000000000000000003';let company,inactive=false;
  const directory={companyName:'acme.enswhite.eth',provider:{},close(){},async employee(label){if(inactive&&label==='support')throw new Error('Employee is fired or expired');const dept=company.departments.find(x=>x.id===label);return{wallet:dept.address,weekly:dept.weekly,perCall:dept.perCall,vendors:label==='support'?['lingualink.vendors.enswhite.eth']:label==='marketing'?['copydesk.vendors.enswhite.eth','pixelpress.vendors.enswhite.eth']:[]}},transaction(){throw new Error('The web app must not request browser signing')}};

@@ -263,7 +263,7 @@ export async function createCompany({ env = process.env, directory = resolve(env
         await service.assertEmployee('finance');
         if(!proposalId){if(env.AGENT_MODE==='llm')throw fail('Request and review a Finance proposal before approval');const missionId='allocation_'+week(),needs=await service.allocationNeeds(missionId);proposalId=(await service.proposeAllocation(needs,'Offline task-cost proposal for the registered campaign services, after existing department funds.',missionId)).id;}
         const proposal=db.prepare('SELECT * FROM finance_proposals WHERE id=?').get(proposalId);if(!proposal)throw fail('Finance proposal not found');if(proposal.state==='approved')return{accepted:true};
-        const allocations=JSON.parse(proposal.allocations);await service.proposeAllocation(allocations,proposal.rationale,proposal.mission_id,proposal.source);
+        const allocations=JSON.parse(proposal.allocations);await retryRPCRead(()=>service.proposeAllocation(allocations,proposal.rationale,proposal.mission_id,proposal.source));
         db.exec('BEGIN IMMEDIATE');try{for(const dept of departments){const amount=allocations[dept.id];if(BigInt(amount)>0n)enqueue(`proposal:${proposal.id}:${dept.id}`,'allocation',{dept:dept.address,amount,week:week(),mission:proposal.mission_id});}db.prepare("UPDATE finance_proposals SET state='approved' WHERE id=?").run(proposal.id);db.exec('COMMIT')}catch(error){db.exec('ROLLBACK');throw error}
         activity.record('finance','allocation_approved','The founder approved my task-based allocation proposal.',{mission:proposal.mission_id,key:'proposal-approved:'+proposal.id});return{accepted:true};
       },

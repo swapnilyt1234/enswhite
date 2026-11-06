@@ -115,10 +115,10 @@ export async function createRealCompanyChain(env, config) {
         }
         for (const vendor of config.vendors) if (await contract.vendorMaxPrice(vendor.address) !== BigInt(vendor.price)) throw new Error('Register vendor prices before starting');
       },
-      async balance(address) { return base.token.balanceOf(address); },
-      async allocationNonce() { return String(await contract.allocationNonce()); },
+      async balance(address) { return retryRPCRead(()=>base.token.balanceOf(address)); },
+      async allocationNonce() { return String(await retryRPCRead(()=>contract.allocationNonce())); },
       async snapshot() {
-        const [credit,fees,gas,treasury,pool]=await Promise.all([contract.companyBalance(),contract.feePool(),base.provider.getBalance(relayer.address),base.token.balanceOf(getAddress(env.TREASURY_ADDRESS)),base.token.balanceOf(address)]);
+        const [credit,fees,gas,treasury,pool]=await Promise.all([()=>contract.companyBalance(),()=>contract.feePool(),()=>base.provider.getBalance(relayer.address),()=>base.token.balanceOf(getAddress(env.TREASURY_ADDRESS)),()=>base.token.balanceOf(address)].map(read=>retryRPCRead(read)));
         const available=pool-credit-fees;
         return {companyBalance:String(credit),feePool:String(fees),relayerWbt:String(gas),treasuryUsdt:String(treasury),poolAvailable:String(available>0n?available:0n)};
       },
