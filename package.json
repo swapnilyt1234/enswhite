@@ -6,6 +6,7 @@
   "engines": { "node": ">=22.13" },
   "scripts": {
     "start": "node --env-file-if-exists=.env app/server.js",
+    "company": "node --env-file-if-exists=.env app/run-company.js",
     "test": "node --test app/*.test.js",
     "check:chain": "node --env-file-if-exists=.env app/check-chain.js"
   },

@@ -29,12 +29,12 @@ export function openStore(directory) {
   return { db, key };
 }
 
-function encrypt(key, secret) {
+export function encrypt(key, secret) {
   const iv = randomBytes(12), cipher = createCipheriv('aes-256-gcm', key, iv);
   const ciphertext = Buffer.concat([cipher.update(secret, 'utf8'), cipher.final()]);
   return Buffer.concat([iv, cipher.getAuthTag(), ciphertext]).toString('base64');
 }
-function decrypt(key, encrypted) {
+export function decrypt(key, encrypted) {
   const bytes = Buffer.from(encrypted, 'base64');
   const decipher = createDecipheriv('aes-256-gcm', key, bytes.subarray(0, 12));
   decipher.setAuthTag(bytes.subarray(12, 28));
