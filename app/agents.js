@@ -4,7 +4,7 @@ export async function modelText(instructions, input, fallback, env = process.env
   if(!env.OPENAI_API_KEY||!env.OPENAI_MODEL)throw new Error('Configure the private model and API key; no offline substitute was used.');
   try {
     const response = await fetch('https://api.openai.com/v1/responses', {
-      method: 'POST', signal: AbortSignal.timeout(8000),
+      method: 'POST', signal: AbortSignal.timeout(60000),
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.OPENAI_API_KEY}` },
       body: JSON.stringify({ model: env.OPENAI_MODEL, instructions, input: clean(input,8000), store: false, max_output_tokens: 1400 }),
     });

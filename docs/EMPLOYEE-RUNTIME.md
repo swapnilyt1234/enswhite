@@ -46,7 +46,9 @@ For private model mode, configure `AGENT_MODE=llm`, `OPENAI_MODEL` and `OPENAI_A
 node --env-file-if-exists=.env.company app/demo-runtime.js
 ```
 
-This exercises the real API against disposable simulated funds; model calls incur the account's API charges. The user explicitly chose offline validation in this pass, so no real-model success is claimed. For the established testnet company, use `start-company-testnet.ps1` and enter secrets locally. Do not run the simulated four-process launcher alongside the real vendors on ports 4001–4003.
+This exercises the real API against disposable simulated funds; model calls incur the account's API charges. A real `gpt-6.1-sol` run completed successfully on November 7, 2026, after increasing API request timeouts to 60 seconds (the earlier 20-second runtime deadline timed out before its first call). Role/tool caps and the three-minute per-invocation runtime limit remain unchanged. For the established testnet company, use `start-company-testnet.ps1` and enter secrets locally. Do not run the simulated four-process launcher alongside the real vendors on ports 4001–4003.
+
+The real-model validation mission `f9463c4b-8dbf-4755-a3f7-749a930ef585` completed Marketing in 8 calls, Support in 6 and Finance in 8. Marketing handed delivered copy to design and waited for the demo banner approval. Support drafted and reviewed sourced FAQ questions before buying translation. Finance read the ledger, reviewed expenses, proposed allocation, waited for delivery, flagged an expense, prepared its report and submitted. All runs had source `llm`; the downloadable Kit assembled successfully. Receipts reconciled CopyDesk 0.1, PixelPress 0.2 and LinguaLink 0.1 simulated USDT. Explorer URLs were null because these were simulated funds. This proves real API/tool execution; it does not prove live settlement by this new runtime or independent semantic quality of the translation. The disposable database was cleaned up and no private model output was published.
 
 The environment example uses fresh workforce-simulated data paths so the new local demo does not reuse or overwrite an older payment-lab simulator. The testnet launcher sets the existing real-testnet paths explicitly.
 
@@ -54,7 +56,7 @@ Public activation in this session was blocked by automatic execution review when
 
 ## Current boundaries
 
-- Real model connectivity and model-specific quality remain unverified until the user supplies local configuration. Offline FAQs preserve source facts and explicitly do not claim to have translated them.
+- Real model connectivity and complete tool execution are verified with `gpt-6.1-sol` and simulated funds. Independent output quality review and a new real-testnet mission remain pending. Offline FAQs preserve source facts and explicitly do not claim to have translated them.
 - Translation is a draft for founder review. Source checks and payment verification do not prove semantic quality.
 - The runtime intentionally supports three fixed employees and the complete commerce-launch workflow. It does not execute arbitrary code, unrestricted agent-to-agent payments, tax/payroll or treasury trading.
 - ENS discovery migration is now live and independently verified on Sepolia: Marketing 11295, Support 11296 and Finance 11297. ENSIP-25 consent, ERC-8004 ownership/wallet metadata and ENSIP-26 context/web records are configured. The company pointer now resolves to the replacement directory; Whitechain was not redeployed. See [deployment evidence](DISCOVERY-VERIFICATION.md). Reputation feedback and validation services remain a later identity phase.

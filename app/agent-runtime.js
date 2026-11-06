@@ -2,7 +2,7 @@ import {EMPLOYEES,validateArguments} from './agent-definitions.js';
 
 export async function responsesRequest(body,env,request=fetch){
  if(!env.OPENAI_API_KEY||!env.OPENAI_MODEL)throw new Error('Configure OPENAI_MODEL and OPENAI_API_KEY locally.');
- let response;try{response=await request('https://api.openai.com/v1/responses',{method:'POST',signal:AbortSignal.timeout(20000),headers:{'Content-Type':'application/json',Authorization:`Bearer ${env.OPENAI_API_KEY}`},body:JSON.stringify({model:env.OPENAI_MODEL,store:false,max_output_tokens:1400,...body})})}catch{throw new Error('Model request timed out or could not connect. No offline substitute was used.')}
+ let response;try{response=await request('https://api.openai.com/v1/responses',{method:'POST',signal:AbortSignal.timeout(60000),headers:{'Content-Type':'application/json',Authorization:`Bearer ${env.OPENAI_API_KEY}`},body:JSON.stringify({model:env.OPENAI_MODEL,store:false,max_output_tokens:1400,...body})})}catch{throw new Error('Model request timed out or could not connect. No offline substitute was used.')}
  if(!response.ok)throw new Error(`Model request failed (HTTP ${response.status}). Check local model, key, quota and account access.`);
  const text=await response.text();if(text.length>500000)throw new Error('Model response exceeded size limit');
  let result;try{result=JSON.parse(text)}catch{throw new Error('Model returned invalid JSON')}
