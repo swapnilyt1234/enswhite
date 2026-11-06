@@ -7,8 +7,10 @@ import { createSimulatedCompanyChain, createRealCompanyChain, RECEIVE_TYPES, TOP
 import { planMission } from './agents.js';
 import { decodePayment, encodePayment } from './x402.js';
 import { NETWORK, TOKEN, EXPLORER } from './chain.js';
+import { createENSDirectory, IDENTITY_TYPES } from './ens.js';
+import { createENSWriter } from './ens-writer.js';
 
-export const COMPANY_SCHEME = 'relay-receive';
+export const COMPANY_SCHEME = 'enswhite-receive';
 const now = () => Math.floor(Date.now()/1000);
 const week = () => Math.floor(Date.now()/604800000);
 const publicError = 'Operation paused. Check contract setup, gas tank, pool funding or vendor availability; the saved transaction is retained.';
@@ -31,6 +33,7 @@ export async function createCompany({ env = process.env, directory = resolve(env
   const getWallet = walletStore(db, key);
   const departments = DEPARTMENTS.map(dept => ({ ...dept, address: getWallet(dept.id, 'department').address }));
   let chain;
+  const directoryENS = env.ENS_ENABLED === 'true' ? createENSDirectory(env) : null;
   try {
     const vendors = [];
     for (const expected of VENDORS) {
@@ -47,6 +50,7 @@ export async function createCompany({ env = process.env, directory = resolve(env
     await chain.checkConfiguration();
     const attester = simulatedAttester ?? chain.attester;
     const gateway = createGateway(env, db);
+    const ensWriter=directoryENS?createENSWriter(db,directoryENS,getWallet):null;
     db.prepare('INSERT OR IGNORE INTO settings VALUES(?,?)').run('company_config', fingerprint);
     let running;
     const jobs = () => db.prepare('SELECT id,kind,state,hash,error,created_at FROM company_jobs ORDER BY created_at DESC').all();
@@ -75,8 +79,11 @@ export async function createCompany({ env = process.env, directory = resolve(env
           const own = ledger.filter(row => row.dept.toLowerCase() === dept.address.toLowerCase());
           team.push({ ...dept, balance: String(await chain.balance(dept.address)), remaining: String(await remaining(dept)), spent: own.reduce((sum, row) => sum + BigInt(row.amount), 0n).toString(), lastPurchase: own.at(-1) ?? null });
         }
-        return { brand: 'Relay', mode, paymentMode: gateway.mode, scheme: COMPANY_SCHEME, company: chain.address, network: NETWORK, token: TOKEN,
-          ...snapshot, team, vendors: vendors.map(v => ({ ...v, earningsUrl: `http://localhost:${v.port}/` })),
+        const organization = directoryENS ? await directoryENS.organization() : [];
+        for(const dept of team){const identity=organization.find(row=>row.wallet.toLowerCase()===dept.address.toLowerCase());dept.identity=identity??null;dept.ensName=identity?.name??(directoryENS?`${dept.id}.${directoryENS.companyName}`:null);if(identity){dept.weekly=identity.weekly;dept.perCall=identity.perCall;}}
+        const branding=directoryENS?await directoryENS.branding().catch(()=>null):null;
+        return { brand: 'EnsWhite', ens: { enabled: !!directoryENS, organization, companyName:directoryENS?.companyName, branding, writes:ensWriter?.jobs()??[] }, mode, paymentMode: gateway.mode, scheme: COMPANY_SCHEME, company: chain.address, network: NETWORK, token: TOKEN,
+          ...snapshot, team, vendors: vendors.map(v => ({ ...v, earningsUrl: `/api/vendors/${v.id}/earnings` })),
           tasks: db.prepare('SELECT * FROM company_tasks ORDER BY created_at DESC').all().map(row => ({ ...row, result: row.result ? JSON.parse(row.result) : null })),
           missions: db.prepare('SELECT * FROM company_missions ORDER BY created_at DESC').all(), ledger, jobs: jobs(),
           approvals: db.prepare('SELECT * FROM company_approvals ORDER BY created_at DESC').all(),
@@ -91,6 +98,27 @@ export async function createCompany({ env = process.env, directory = resolve(env
         if (!/^order_[a-zA-Z0-9]+$/.test(order.id)) throw fail('Invalid payment-provider order');
         db.prepare('INSERT INTO company_orders VALUES(?,?,?)').run(order.id, 50_000, '5000000');
         return { id: order.id, amount: 50_000, currency: 'INR', keyId: gateway.keyId, mode: gateway.mode };
+      },
+      async manageENS(action,label,term) {
+        if(!directoryENS)throw fail('ENSv2 is not configured',409);
+        const dept=departments.find(row=>row.id===label);
+        if(!dept)throw fail('Choose a registered department');
+        return directoryENS.transaction(action,label,dept.address,{weekly:dept.weekly,perCall:dept.perCall,vendors:vendors.filter(v=>v.dept===label).map(v=>`${v.id}.vendors.${env.ENS_PARENT_NAME}`)},term);
+      },
+      async signupENS(label) {
+        if(!directoryENS)throw fail('ENSv2 is not configured',409);
+        return directoryENS.signup(label,departments.find(d=>d.id==='finance').address);
+      },
+      updateENSBudget(label,amount,id) {
+        if(!ensWriter)throw fail('ENSv2 is not configured',409);
+        return ensWriter.queue(label,'enswhite.budget.weekly',amount,id);
+      },
+      async vendorEarnings(id) {
+        const vendor=vendors.find(row=>row.id===id);
+        if(!vendor)throw fail('Unknown vendor',404);
+        const response=await vendorFetch(vendor.url+'/api/earnings',{signal:AbortSignal.timeout(10000)});
+        if(!response.ok)throw fail('Vendor earnings unavailable',502);
+        return response.json();
       },
       async capture(raw, signature) {
         if (typeof signature !== 'string' || !/^[a-f0-9]{64}$/i.test(signature) || !timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(webhookSignature(raw, gateway.secret), 'hex'))) throw fail('Invalid webhook signature', 401);
@@ -115,12 +143,14 @@ export async function createCompany({ env = process.env, directory = resolve(env
         return service.capture(raw, webhookSignature(raw, gateway.secret));
       },
       async allocate() {
+        if(directoryENS&&(await directoryENS.employee('finance')).wallet!==departments.find(d=>d.id==='finance').address)throw fail('ENS Finance wallet differs from the configured signer');
         const available = BigInt((await chain.snapshot()).companyBalance);
         const existing = db.prepare("SELECT data FROM company_jobs WHERE kind='allocation' AND state!='failed'").all().map(row => JSON.parse(row.data)).filter(row => row.week === week());
         let left = available;
         for (const dept of departments) {
+          const identity=directoryENS?await directoryENS.employee(dept.id):null;
           const allocated = existing.filter(row => row.dept === dept.address).reduce((sum, row) => sum + BigInt(row.amount), 0n);
-          const maximum = BigInt(dept.weekly) - allocated;
+          const maximum = BigInt(identity?.weekly??dept.weekly) - allocated;
           const proposed = available * BigInt(dept.share) / 100n;
           const amount = maximum < proposed ? maximum : proposed;
           if (amount > 0n && amount <= left) {
@@ -146,6 +176,7 @@ export async function createCompany({ env = process.env, directory = resolve(env
       async buy(departmentId, vendorId, task, missionId) {
         const dept = departments.find(d => d.id === departmentId), vendor = vendors.find(v => v.id === vendorId && v.dept === departmentId);
         if (!dept || !vendor || typeof task !== 'string' || !task.trim() || task.length > 2000) throw fail('Department/vendor policy rejected');
+        const ensPolicy=directoryENS?await directoryENS.authorize(dept.id, `${vendor.id}.vendors.${env.ENS_PARENT_NAME}`, dept.address, vendor.address, vendor.url+'/work', vendor.price):null;
         const id = keccak256(toUtf8Bytes(`${missionId}:${vendorId}`));
         if (db.prepare('SELECT id FROM company_tasks WHERE id=?').get(id)) return id;
         const body = { requestId: id, dept: dept.address, task };
@@ -161,7 +192,7 @@ export async function createCompany({ env = process.env, directory = resolve(env
         const spentJobs = db.prepare("SELECT amount,state,created_at FROM company_tasks WHERE dept=? AND state NOT IN ('rejected','failed')").all(departmentId);
         const weekly = spentJobs.filter(row => row.created_at >= sinceWeek).reduce((sum, row) => sum + BigInt(row.amount), 0n);
         const daily = spentJobs.filter(row => Math.floor(row.created_at/86400) === Math.floor(now()/86400)).reduce((sum, row) => sum + BigInt(row.amount), 0n);
-        if (weekly + amount > BigInt(dept.weekly) || daily + amount > BigInt(dept.perDay)) throw fail('Weekly or daily policy limit exceeded');
+        if (weekly + amount > BigInt(ensPolicy?.weekly??dept.weekly) || daily + amount > BigInt(dept.perDay)) throw fail('Weekly or daily policy limit exceeded');
         const state = amount > BigInt(dept.approval) ? 'approval' : 'queued';
         db.prepare('INSERT INTO company_tasks VALUES(?,?,?,?,?,?,?,?,NULL,NULL,?)').run(id, missionId, dept.id, vendor.id, task, vendor.price, '0x' + randomBytes(32).toString('hex'), state, now());
         if (state === 'queued') enqueue(id, 'payment', { requestId: id });
@@ -202,17 +233,28 @@ export async function createCompany({ env = process.env, directory = resolve(env
                   data.deadline = String(now()+300);
                   data.signature = await attester.signTypedData(chain.companyDomain, TOP_UP_TYPES, { paymentId: data.paymentId, amount: data.amount, deadline: data.deadline });
                 } else if (row.kind === 'allocation') {
+                  if(directoryENS){
+                    const finance=await directoryENS.employee('finance');
+                    if(finance.wallet!==departments.find(d=>d.id==='finance').address)throw new Error('ENS Finance signer mismatch');
+                    const dept=departments.find(d=>d.address===data.dept),identity=await directoryENS.employee(dept.id);
+                    if(identity.wallet!==dept.address||BigInt(data.amount)>BigInt(identity.weekly))throw new Error('ENS allocation policy rejected');
+                  }
                   data.nonce = await chain.allocationNonce(); data.deadline = String(now()+300);
                   data.signature = await getWallet('finance', 'department').signTypedData(chain.companyDomain, ALLOCATE_TYPES, { dept: data.dept, amount: data.amount, nonce: data.nonce, deadline: data.deadline });
                 } else {
                   const task = db.prepare('SELECT * FROM company_tasks WHERE id=?').get(row.id);
                   const dept = departments.find(d => d.id === task.dept), vendor = vendors.find(v => v.id === task.vendor);
                   if (!['queued','submitted'].includes(task.state)) throw new Error('Task not approved');
+                  const identity = directoryENS ? await directoryENS.authorize(dept.id, `${vendor.id}.vendors.${env.ENS_PARENT_NAME}`, dept.address, vendor.address, vendor.url+'/work', task.amount) : null;
                   const authorization = { from: dept.address, to: chain.address, value: task.amount, validAfter: String(now()-1), validBefore: String(now()+300), nonce: boundNonce(vendor.address, task.id, task.salt) };
                   const signature = await getWallet(dept.id, 'department').signTypedData(chain.domain, RECEIVE_TYPES, authorization);
                   const payload = { x402Version: 2, accepted: { scheme: COMPANY_SCHEME, network: NETWORK, amount: task.amount, asset: TOKEN, payTo: chain.address }, payload: { requestId: task.id, authorization, signature } };
                   await service.verify(payload);
                   data = { requestId: task.id, dept: dept.address, vendor: vendor.address, amount: task.amount, salt: task.salt, authorization, signature };
+                  if (identity) {
+                    data.identity = { deptNode:identity.node, vendorNode:identity.vendorNode, weeklyMax:identity.weekly, perCallMax:identity.perCall, nameExpiry:identity.expiry, validUntil:identity.validUntil };
+                    data.policySignature = await attester.signTypedData(chain.companyDomain, IDENTITY_TYPES, {requestId:task.id,dept:dept.address,vendor:vendor.address,...data.identity});
+                  }
                 }
                 const tx = await chain.prepare(row.kind, data);
                 db.prepare("UPDATE company_jobs SET data=?,raw=?,hash=?,state='submitted',error=NULL WHERE id=?").run(JSON.stringify(data), tx.raw, tx.hash, row.id);
@@ -238,6 +280,14 @@ export async function createCompany({ env = process.env, directory = resolve(env
               db.prepare("UPDATE company_tasks SET state='delivered',result=?,error=NULL WHERE id=?").run(JSON.stringify(result), task.id);
             } catch { db.prepare('UPDATE company_tasks SET error=? WHERE id=?').run('Payment confirmed; vendor delivery pending. Retrying never charges again.', task.id); }
           }
+          if(ensWriter) {
+            for(const dept of departments) {
+              const tasks=db.prepare('SELECT state FROM company_tasks WHERE dept=? ORDER BY created_at DESC,rowid DESC').all(dept.id);
+              const status=tasks.some(t=>t.state==='approval')?'awaiting approval':tasks.some(t=>['queued','submitted','confirmed'].includes(t.state))?'working':tasks[0]?.state==='delivered'?'delivered':tasks[0]?.state==='failed'?'blocked':'active';
+              await ensWriter.status(dept.id,status).catch(()=>{});
+            }
+            await ensWriter.process();
+          }
         })().finally(() => { running = null; });
         return running;
       },
@@ -249,15 +299,15 @@ export async function createCompany({ env = process.env, directory = resolve(env
         return { success: job.state === 'confirmed', network: NETWORK, transaction: job.state === 'confirmed' ? job.hash : '', ...(job.state !== 'confirmed' ? { errorReason: 'settlement_pending' } : {}) };
       },
       async csv() {
-        const lines = ['request_id,department,vendor,gross_test_usdt,fee_test_usdt,net_test_usdt,demo_inr,transaction'];
+        const lines = ['request_id,department,vendor,gross_test_usdt,fee_test_usdt,net_test_usdt,demo_inr,transaction,department_ens_node,vendor_ens_node'];
         for (const event of await receipts()) {
           const dept = departments.find(d => d.address.toLowerCase() === event.dept.toLowerCase()), vendor = vendors.find(v => v.address.toLowerCase() === event.vendor.toLowerCase());
-          lines.push([event.requestId, dept?.name ?? event.dept, vendor?.name ?? event.vendor, formatUnits(event.amount,6), formatUnits(event.fee,6), formatUnits(BigInt(event.amount)-BigInt(event.fee),6), (Number(event.amount)/10000).toFixed(2), event.hash].join(','));
+          lines.push([event.requestId, dept?.name ?? event.dept, vendor?.name ?? event.vendor, formatUnits(event.amount,6), formatUnits(event.fee,6), formatUnits(BigInt(event.amount)-BigInt(event.fee),6), (Number(event.amount)/10000).toFixed(2), event.hash,event.deptNode??'',event.vendorNode??''].join(','));
         }
         return lines.join('\r\n');
       },
-      async close() { if (running) await running; chain.close(); db.close(); },
+      async close() { if (running) await running; directoryENS?.close(); chain.close(); db.close(); },
     };
     return service;
-  } catch (error) { chain?.close(); db.close(); throw error; }
+  } catch (error) { directoryENS?.close(); chain?.close(); db.close(); throw error; }
 }

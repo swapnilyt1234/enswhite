@@ -1,20 +1,84 @@
-# Relay
+# EnsWhite
 
 **Hire AI departments, give each a budget, and the books close themselves.**
 
-Relay is the money layer for a solo founder's agent company: corporate cards and expense reports for AI employees. Marketing buys copy and a banner. Support buys a translated FAQ. Finance signs allocations, reconciles receipts and flags above-threshold spending. Every vendor payment goes to an independent vendor wallet; departments never pay each other.
+EnsWhite is the money layer for a solo founder's agent company: corporate cards and expense reports for AI employees. Marketing buys copy and a banner. Support buys a translated FAQ. Finance signs allocations, reconciles receipts and flags above-threshold spending. Every vendor payment goes to an independent vendor wallet; departments never pay each other.
 
 **Fiat is simulated. This runs on Whitechain Sepolia and uses test USDT with no real monetary value. No fiat-to-USDT conversion occurs.** The demo allocation is INR 500 → 5 test USDT (INR 100 per test USDT for the founder's display). This is a fixed demo allocation, not an exchange rate.
 
-![Relay company workspace, showing a completed simulated mission](docs/images/relay-company.png)
+## How ENSv2 runs EnsWhite
+
+**`enswhite.eth` is owned on Ethereum mainnet. The functional ENSv2 demo uses a separate registration of `enswhite.eth` on Sepolia.** A mainnet registration does not register the same testnet name. `npm run ens:check` checks the real Sepolia ETHRegistry and reports whether that prerequisite is ready.
+
+ENS is the employee directory and policy source; Whitechain is the bank. The Sepolia hierarchy is deployed, all three employee/vendor pairs pass live resolution, and the vendor registry reports `isEmancipated() = true`. The new [verified EnsWhiteCompany](https://explorer.testnet.whitechain.io/address/0xbca635f00C07681f10269f69ca293bDB6536D6aB/contracts) is deployed on Whitechain at block **12353630** with identity enforcement enabled. Its pool received [5 test USDT from the owner](https://explorer.testnet.whitechain.io/tx/0x2f42648a93ecaa4809272f5ba78f0bcd7e52eceb112ef81abd6b6c8a4edf17bc). A new ENS-bound payment receipt is still required as end-to-end proof; earlier legacy receipts do not prove this integration.
+
+The Sepolia registration has now been independently verified as REGISTERED (status 2), owned by `0x4F961b8Abd8AF7cCdCcc4F76cd7326d8FbEa0594`: [enswhite.eth on Sepolia](https://sepolia.app.ens.domains/enswhite.eth). The readiness check discovers the active `.eth` registry through the Universal Resolver's root rather than assuming a static root deployment.
+
+| Operation | ENSv2 integration |
+| --- | --- |
+| Create the company | EnsWhiteNames deploys a verifiable UserRegistry for `acme.enswhite.eth` and links the parent hierarchy |
+| Hire / renew / fire | Expiring ERC1155 employee names, with founder controls in Team and Sepolia wallet confirmation |
+| Employee identity | One Permissioned Resolver per employee; Whitechain coin type **2147485522** points to its existing department wallet |
+| Finance delegation | Finance may update only `enswhite.budget.weekly`; it cannot change the vendor allowlist or wallet records |
+| Agent status | Each employee has permission to edit only its own `enswhite.status` key |
+| Company signup | Team prepares a founder-wallet transaction to create another company registry and namespace; the demo keeps its existing bank/workspace instead of silently moving funds |
+| Company branding | A separate company resolver holds default (`0x00`) name/avatar/URL records; the app reads these for the workspace and employee directory |
+| Spending | Fresh Universal Resolver reads check employment, expiry, weekly/per-call policy, vendor allowlist, payee and `x402.endpoint` before signing |
+| Vendor identities | `copydesk`, `pixelpress` and `lingualink` under `vendors.enswhite.eth`; permanent transferable tokens and individual vendor-controlled resolvers |
+| Emancipation | Vendor consent is signed by its wallet; sponsoring gas never changes ownership. Bootstrap revokes dangerous vendor-registry root roles and verifies `isEmancipated()` |
+| Cross-chain enforcement | EnsWhiteCompany verifies a request-bound attester signature covering ENS nodes, wallet, vendor, limits and expiry; `Paid` and CSV receipts carry both ENS nodes |
+
+The backend indexes `LabelRegistered` by labelhash and reads current registry state, so mutable token IDs and firing do not leave stale employee tokens in the directory. Ethers 6.17 resolves through the published Universal Resolver proxy; no raw address substitutes for failed ENS resolution. The custom payment scheme is `enswhite-receive`.
+
+### Activate with your wallets
+
+1. Register **enswhite.eth on Sepolia**, using the same original owner account, at [the Sepolia ENS app](https://sepolia.app.ens.domains). It needs Sepolia ETH, not WBT. Your mainnet name remains unchanged. Then run `npm run ens:check`; it must show status **2** and your owner wallet.
+2. Run `./bootstrap-enswhite.ps1`. It builds the isolated `ens/` Foundry project, shows the policy and asks for the original encrypted owner-keystore password. It deploys the platform and company registries, hires the three department wallets for 30 days, installs their scoped resolver roles, and creates the vendor namespace with permanent vendor ownership. Every transaction is journaled before broadcast; rerunning resumes the same steps. Deployments allow up to 16 million gas, other calls 8 million, with a maximum execution fee of 0.005 test ETH per transaction. Public configuration is saved in ignored `data/ens/runtime.json`.
+3. Run `./prepare-enswhite-company.ps1`, then execute its printed **EnsWhiteCompany** deployment command in your own terminal. The constructor arguments remain last. The old verified RelayCompany cannot acquire new policy checks or event fields without a new deployment. Preparation preserves its history and copies the existing employee keys, encrypted, into a separate `data/company/ens-testnet` ledger; it does not move tokens or overwrite existing keys. Stop the gas watcher before deploying from the same owner account on Whitechain.
+4. Run `./configure-enswhite-company.ps1 -CompanyAddress 0xNEW_ADDRESS -DeploymentBlock NEW_BLOCK`. This applies the existing Finance, vendor and spending-limit configuration to the **new** company only.
+5. Prefund the new pool with `./fund-company-pool.ps1 -CompanyDataDir data/company/ens-testnet`. The treasury needs 10 test USDT for that existing helper. Old pool funds and old receipts remain where they were; they are not silently migrated.
+6. Stop the earlier company/vendor group, then run `./start-company-testnet.ps1`. When both new deployment and ENS runtime configuration exist, it selects the ENS company data automatically and requires the new identity-enforcing contract. All three vendors restart against that new company. Keep the Razorpay test webhook at `/api/webhooks/razorpay`, forwarded to port 3004.
+7. In a wallet-enabled browser, Team shows each active ENS name and a contract-term countdown. **Hire**, **Renew** and **Fire** prepare transactions; the founder's connected wallet switches to Sepolia and confirms them. A five-minute demo hire shows expiry without presenting a tokenized employee as a wildcard contractor. The app never asks for the founder's private key.
+8. Run a new vendor mission. Its Whitechain receipts include `deptNode` and `vendorNode`, and Books exports those fields. Do not use the earlier legacy payment links as proof of ENS-enforced settlement.
+
+For the Finance scoped-edit demo, give the Finance department wallet a small **Sepolia ETH** gas balance, then run:
+
+```powershell
+node ens/scripts/finance-budget.js marketing 4000000 finance-budget-demo-01
+```
+
+The Finance wallet signs the resolver edit directly; the script writes only `enswhite.budget.weekly` and saves signed bytes before broadcasting. Stop the company server before using this standalone script, so two processes never use Finance's Sepolia nonce concurrently. Reuse a request ID only to recover that same edit. Its Whitechain WBT balance remains zero. The ENS fork test also attempts a Finance edit of `enswhite.vendors` and proves it reverts.
+
+Team also has a Finance budget form. Its edits and automatic employee status updates share one persistent, sequential ENS transaction queue. Each employee signs its own status; Finance signs only budget changes requested by the founder. The launcher discloses limits: **48 ENS writes per UTC day**, **1 million gas** and **0.0001 Sepolia ETH maximum execution fee per edit**; requested weekly caps are at most **50 test USDT**, and Whitechain's hard limits remain in force. A missing Sepolia gas balance pauses record writes without granting a broader role. Bootstrap installs company branding and sponsors 0.001 test ETH per department once; it never replenishes those balances automatically. Company branding is inherited in the app; separate employee resolver records do not automatically inherit individual text keys from another resolver.
+
+To run the existing gas watcher for the new company, use `./start-gas-replenisher.ps1 -CompanyDataDir data/company/ens-testnet` after stopping the old watcher. Wallet filenames, browser storage keys, legacy EIP-712 domains and old deployed contract source retain compatibility names; changing those strings would invalidate signing or strand existing sessions. The public product and repository are **EnsWhite**, at [swapnilyt1234/enswhite](https://github.com/swapnilyt1234/enswhite).
+
+### ENS validation and limits
+
+```powershell
+npm test
+forge test --match-contract EnsWhiteCompanyTest -vv
+$env:ENS_FORK_TEST='true'
+$env:ENS_FORK_BLOCK=[string]([long](cast block-number --rpc-url https://ethereum-sepolia-rpc.publicnode.com)-16)
+try { forge test --root ens -vv }
+finally { Remove-Item Env:ENS_FORK_TEST; Remove-Item Env:ENS_FORK_BLOCK }
+```
+
+The ENS fork tests use the actual Sepolia factory, registries and resolver implementation: non-transferable employee ownership, scoped Finance edits, firing, five-minute expiry, signed vendor consent, vendor-registry emancipation and permanent transferable vendor tokens. Whitechain unit tests prove valid attested settlement and rejection of expired names, altered vendor nodes and over-limit payments. Ordinary test runs explicitly skip opt-in fork tests.
+
+Cross-chain policy attestations last at most **60 seconds** and never beyond the employment expiry. Firing blocks newly authorized payments after fresh ENS resolution; an already signed or broadcast payment can remain valid for that bounded window. Sepolia revocation is not magically instantaneous on another chain. The Whitechain attester is a trusted bridge for these facts, not an ENS light client.
+
+Vendor-registry emancipation removes that registry's revocation authority. The owner of the ancestor `enswhite.eth` namespace can still change its own subregistry pointer; this is not a claim of emancipation across the entire ancestor chain. Wildcard contractors without tokens, namespace aliasing and agent-owned subteams are the explicitly cut stretch features. The implemented five-minute expiry demo is an employee token.
+
+Implementation references: [ENSv2 registries](https://docs.ens.domains/ensv2/permissioned-registry), [resolvers and scoped permissions](https://docs.ens.domains/ensv2/permissioned-resolver), [deployment pattern](https://docs.ens.domains/ensv2/tutorial-contract-developers), and [published deployments](https://docs.ens.domains/learn/deployments).
 
 ## Run locally
 
 Requires Node.js 22.13+, Git and, for Solidity, Foundry (tested with 1.4.4).
 
 ```powershell
-git clone --recurse-submodules https://github.com/swapnilyt1234/relay-agent-company.git
-cd relay-agent-company
+git clone --recurse-submodules https://github.com/swapnilyt1234/enswhite.git
+cd enswhite
 npm ci
 npm test
 npm run company
@@ -56,7 +120,7 @@ Each vendor has its own encrypted wallet, process, order database and earnings p
 - `allocateBySig`: Finance signs an allocation; the relayer pays gas. Finance therefore needs no WBT. Its nonce prevents replay.
 - `registerVendor` / `setLimits`: owner-only vendor prices and department per-call/day caps.
 - `pay`: recomputes `keccak256(abi.encode(vendor, requestId, salt))`, checks the registered price, call/day limits and request replay, then executes the department's signed `ReceiveWithAuthorization`. Only the named recipient, RelayCompany, can execute it. The contract sends the vendor the amount minus 1% and emits `Paid`.
-- `withdrawFees`: owner-only withdrawal of the recorded USDT fee pool. Company credit is not withdrawable as fees. This does not automatically convert USDT to WBT.
+- `withdrawFees`: owner-only withdrawal of the recorded USDT fee pool. Company credit is not withdrawable as fees. The separate automatic gas replenisher converts earned fees to WBT through YetiTrade when the relayer needs gas.
 
 The backend reserves budget before signing, enforces weekly caps and founder thresholds, and records approval decisions. Models may propose allowed vendor work; they never choose signing keys, wallet addresses, prices or permissions. A compromised department key can lose its allocated token balance; **there is no claim that a stolen key cannot transfer tokens directly**. Department wallets hold zero WBT and only their allocations.
 
@@ -91,9 +155,9 @@ Password guide: the **original owner password** unlocks `whitechain-testnet` for
 
 ## Custom x402 scheme
 
-The company implements **`relay-receive`**, a custom scheme over x402 v2 HTTP headers on **`eip155:1874`**. It is deliberately **not called standard `exact`**: that scheme normally signs `TransferWithAuthorization`, whereas Relay signs `ReceiveWithAuthorization` to an enforcing contract.
+The company implements **`enswhite-receive`**, a custom scheme over x402 v2 HTTP headers on **`eip155:1874`**. It is deliberately **not called standard `exact`**: that scheme normally signs `TransferWithAuthorization`, whereas EnsWhite signs `ReceiveWithAuthorization` to an enforcing contract.
 
-Vendors return `402` with `PAYMENT-REQUIRED`. Relay checks policy, reserves budget, signs a vendor/order-bound authorization and relays `pay`. `PAYMENT-RESPONSE` carries the confirmed transaction, which the vendor verifies before delivery. Authenticated facilitator endpoints are `/api/x402/supported`, `/api/x402/verify` and `/api/x402/settle`. This is a company-specific facilitator, not a hosted Whitechain service or universal SDK integration. References: [x402 v2](https://github.com/coinbase/x402/blob/main/specs/x402-specification-v2.md), [HTTP transport](https://github.com/coinbase/x402/blob/main/specs/transports-v2/http.md).
+Vendors return `402` with `PAYMENT-REQUIRED`. EnsWhite checks policy, reserves budget, signs a vendor/order-bound authorization and relays `pay`. `PAYMENT-RESPONSE` carries the confirmed transaction, which the vendor verifies before delivery. Authenticated facilitator endpoints are `/api/x402/supported`, `/api/x402/verify` and `/api/x402/settle`. This is a company-specific facilitator, not a hosted Whitechain service or universal SDK integration. References: [x402 v2](https://github.com/coinbase/x402/blob/main/specs/x402-specification-v2.md), [HTTP transport](https://github.com/coinbase/x402/blob/main/specs/transports-v2/http.md).
 
 ## Checks and transaction evidence
 
@@ -136,12 +200,46 @@ See [architecture](docs/architecture.md) and [earlier lab notes](docs/payment-la
 
 ## Why onchain
 
-Agent departments need bounded spending authority across independent services. A contract enforces vendor allowlists, price limits and replay protection. Vendors independently verify payment without trusting Relay's database, and the shared receipt trail makes the accountant export checkable.
+Agent departments need bounded spending authority across independent services. A contract enforces vendor allowlists, price limits and replay protection. Vendors independently verify payment without trusting EnsWhite's database, and the shared receipt trail makes the accountant export checkable.
+
+## Automatic gas replenishment
+
+Keep the company running, then start a separate watcher in your own PowerShell terminal:
+
+```powershell
+.\start-gas-replenisher.ps1
+```
+
+The launcher shows the company and relayer addresses and the automatic signing policy, asks for confirmation, then privately unlocks the **original `whitechain-testnet` owner keystore**. The existing deployed contract restricts fee withdrawal to its owner, so no contract migration is required. That owner key stays in this separate terminal process, not the web server. It still grants full company-owner authority: protect that terminal and keystore, and do not run other transactions from the same owner account while the watcher is signing. No relayer or department key is needed by the watcher.
+
+Every minute, the watcher checks the relayer's native WBT. Below **0.05 WBT**, it:
+
+1. Quotes the USDT/WWBT pool at YetiTrade's four standard fee tiers and chooses the best liquid direct route.
+2. Leaves the fees untouched unless the minimum expected output covers at least twice a conservative execution-gas budget.
+3. Calls `withdrawFees(owner)` and records the actual `FeesWithdrawn` amount. Only those proceeds are eligible for swaps; unrelated owner USDT and company credit are excluded.
+4. Resets any stale router allowance, approves the exact input, and swaps at most **10 test USDT per cycle**, with **0.5% slippage** and a **two-minute deadline**.
+5. Atomically unwraps the resulting WWBT and sends **native WBT directly to the relayer**. It never leaves USDT in the relayer wallet.
+
+The owner wallet needs its own WBT to execute withdrawal, approval and swap transactions. This prevents a completely empty relayer from blocking its own recovery, but an empty owner wallet still requires a business-side gas top-up. Quotes are not a profitability guarantee; the watcher uses conservative gas bounds and waits when fees are too small. With the current tiny demo fee pool, waiting is expected.
+
+The worker journals each signed transaction **before broadcasting** in ignored `data/company/testnet/gas-replenisher.sqlite`. A restart resumes the identical bytes even if the relayer balance has since recovered. Unswapped fee proceeds remain tracked for later cycles. Unknown RPC responses keep the transaction; three proven reverts in one phase pause signing for operator inspection. Do not delete the journal to retry an ambiguous transfer. A separate SQLite process lock prevents two replenishment workers from signing concurrently and releases automatically if the process exits.
+
+This narrow integration uses the [published YetiTrade SwapRouter02 and QuoterV2 deployments](https://docs.yetitrade.fi/reference/contracts), with the [standard V3 direct-swap interface](https://docs.yetitrade.fi/guides/swap-from-a-contract). No new dependency or company-contract deployment is needed. If no direct USDT/WWBT route is liquid, the worker waits rather than choosing an unverified external route.
+
+Seven worker tests cover the low-gas trigger, economic and liquidity checks, exact allowances, restart recovery, tracked proceeds, slippage/deadline calldata and bounded retries. The integration also passed an actual-contract **local fork** test: fees left RelayCompany, YetiTrade swapped them, native WBT reached the relayer, its USDT balance stayed zero and company credit was unchanged. Run that test without broadcasting:
+
+```powershell
+$env:WHITECHAIN_FORK_TEST='true'
+try { forge test --match-contract GasReplenisherForkTest -vv }
+finally { Remove-Item Env:WHITECHAIN_FORK_TEST }
+```
+
+The fork test uses historical block 12330293, where the recorded demo fees exist, so rerunning it does not depend on future fee withdrawals. The watcher uses current live state. No live replenishment transaction is claimed by this test.
 
 ## Limits and roadmap
 
 This is a single-founder, single-process hackathon demo, not production custody or payments infrastructure. Department keys are custodial, fiat is simulated and real operations target testnet. Weekly budgets and approvals are enforced by code; the contract enforces credited allocations, funded wallet balances, allowlisted prices, and per-call/day limits. The owner configures policies and withdraws fees in their own terminal. Paid-but-undelivered work retries delivery; it does not automatically refund.
 
-Sales, Product, Design, Engineering and Operations are the five roadmap departments, not fake working agents. Gas-fee withdrawal exists, but **automatic YetiTrade swapping is not implemented**: collected USDT is not WBT. Inter-company sales, production onramps, treasury replenishment, refunds and account recovery are also outside this core release. Production licensing and KYC require separate market-specific review.
+Sales, Product, Design, Engineering and Operations are the five roadmap departments, not fake working agents. Automatic gas replenishment is available through the separate owner-terminal watcher above; it needs enough earned fees, direct-pool liquidity and owner execution gas. Inter-company sales, production onramps, treasury replenishment, refunds and account recovery remain outside this core release. Production licensing and KYC require separate market-specific review.
 
 Show every party in the demo: founder, three departments, three vendor earnings pages, relayer gas tank, approval and real company receipt. Never show keys, passwords, API secrets or data files.

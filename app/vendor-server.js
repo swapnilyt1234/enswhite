@@ -6,7 +6,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { openStore, digest, fail } from './payments.js';
 import { walletStore, VENDORS } from './company-store.js';
 import { inspectToken, TOKEN, NETWORK } from './chain.js';
-import { companyInterface, readCompanyEvents } from './company-chain.js';
+import { parseCompanyLog, readCompanyEvents } from './company-chain.js';
 import { encodePayment, decodePayment } from './x402.js';
 import { vendorWork } from './agents.js';
 
@@ -36,11 +36,11 @@ export async function createVendor(vendorId, env = process.env) {
     if (receipt?.status !== 1) return false;
     return receipt.logs.some(log => {
       if (log.address.toLowerCase() !== company.toLowerCase()) return false;
-      try { const event = companyInterface.parseLog(log); return event?.name === 'Paid' && event.args.requestId === body.requestId && event.args.vendor.toLowerCase() === wallet.address.toLowerCase() && event.args.dept.toLowerCase() === body.dept.toLowerCase() && event.args.amount === BigInt(info.price); } catch { return false; }
+      try { const event = parseCompanyLog(log); return event?.name === 'Paid' && event.args.requestId === body.requestId && event.args.vendor.toLowerCase() === wallet.address.toLowerCase() && event.args.dept.toLowerCase() === body.dept.toLowerCase() && event.args.amount === BigInt(info.price); } catch { return false; }
     });
   }
   const app = express(); app.disable('x-powered-by'); app.use(express.json({ limit: '12kb' }));
-  app.get('/api/info', (req, res) => res.json({ ...info, address: wallet.address, chainMode: mode, company, scheme: 'relay-receive' }));
+  app.get('/api/info', (req, res) => res.json({ ...info, address: wallet.address, chainMode: mode, company, scheme: 'enswhite-receive' }));
   app.get('/api/earnings', async (req, res) => {
     const receipts = await events();
     res.json({ vendor: info.name, address: wallet.address, mode, netUnits: receipts.reduce((sum, row) => sum + BigInt(row.amount) - BigInt(row.fee), 0n).toString(), receipts });
@@ -56,7 +56,7 @@ export async function createVendor(vendorId, env = process.env) {
     const count = db.prepare('SELECT COUNT(*) n FROM vendor_orders').get().n;
     if (!order && count >= 1000) throw fail('Vendor demo order limit reached', 429);
     db.prepare('INSERT OR IGNORE INTO vendor_orders VALUES(?,?,NULL)').run(body.requestId, hash);
-    const requirement = { x402Version: 2, resource: { url: `http://localhost:${info.port}/work`, description: info.service, mimeType: 'application/json' }, accepts: [{ scheme: 'relay-receive', network: NETWORK, amount: info.price, asset: TOKEN, payTo: company, maxTimeoutSeconds: 300, extra: { name: 'Tether USD', version: '1', vendor: wallet.address, requestId: body.requestId } }] };
+    const requirement = { x402Version: 2, resource: { url: `http://localhost:${info.port}/work`, description: info.service, mimeType: 'application/json' }, accepts: [{ scheme: 'enswhite-receive', network: NETWORK, amount: info.price, asset: TOKEN, payTo: company, maxTimeoutSeconds: 300, extra: { name: 'Tether USD', version: '1', vendor: wallet.address, requestId: body.requestId } }] };
     let payment; try { payment = req.get('payment-response') ? decodePayment(req.get('payment-response')) : null; } catch {}
     if (!payment?.success || !(await paid(body, payment.transaction))) return res.status(402).set('PAYMENT-REQUIRED', encodePayment(requirement)).json({ error: 'Confirmed vendor payment required' });
     next();

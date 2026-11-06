@@ -55,6 +55,8 @@ test('founder tops up, Finance allocates, departments pay three vendors, approva
   assert.equal(state.team[0].balance, '2700000');
   assert.equal(state.team[1].balance, '1400000');
   assert((await company.csv()).includes('PixelPress,0.2,0.002,0.198,20.00'));
+  assert.equal((await company.vendorEarnings('copydesk')).netUnits,'99000');
+  await assert.rejects(company.vendorEarnings('unknown'),/Unknown vendor/);
   for (const row of vendors) {
     const earnings = await (await fetch(row.url + '/api/earnings')).json();
     assert.equal(earnings.receipts.length, 1);

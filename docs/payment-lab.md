@@ -1,4 +1,4 @@
-# Relay — Whitechain agent payment lab
+# EnsWhite — Whitechain agent payment lab
 
 A small working demo: a sandbox fiat payment funds a per-session agent wallet; that agent signs an EIP-3009 USDT payment for a sample API report; the business relayer pays WBT gas. The report is deterministic demo content, not an AI-generated security audit.
 

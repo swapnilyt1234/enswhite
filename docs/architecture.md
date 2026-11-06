@@ -1,18 +1,18 @@
-# Relay architecture
+# EnsWhite architecture
 
 ```mermaid
 flowchart LR
-  Founder[Founder: mission + approvals] --> Backend[Relay backend]
+  Founder[Founder: mission + approvals] --> Backend[EnsWhite backend]
   Razorpay[Razorpay test checkout] --> Webhook[Raw HMAC + captured-payment API check]
   Webhook --> Attester[Empty attester signs TopUp]
-  Treasury[USDT-only treasury] --> Pool[Prefunded RelayCompany pool]
+  Treasury[USDT-only treasury] --> Pool[Prefunded EnsWhiteCompany pool]
   Attester --> Pool
   Finance[Finance signs allocation] --> Relayer[WBT-only relayer]
   Pool --> Departments[Marketing / Support / Finance: zero WBT]
   Backend --> Departments
   Departments --> Auth[Bound ReceiveWithAuthorization]
   Auth --> Relayer
-  Relayer --> Policy[RelayCompany.pay checks vendor and limits]
+  Relayer --> Policy[EnsWhiteCompany.pay checks vendor and limits]
   Policy --> Vendors[CopyDesk / PixelPress / LinguaLink]
   Vendors --> Verify[Independent Paid receipt verification]
   Verify --> Delivery[Copy / SVG / translated FAQ]

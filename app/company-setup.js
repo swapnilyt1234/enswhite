@@ -9,7 +9,7 @@ import { walletStore, DEPARTMENTS, VENDORS } from './company-store.js';
 import { pendingConfiguration } from './company-configure.js';
 import { COMPANY_ABI } from './company-chain.js';
 
-const directory = resolve('data/company/testnet');
+const directory = resolve(process.env.COMPANY_DATA_DIR || 'data/company/testnet');
 const command = process.argv[2];
 if (command === 'prepare') {
   if (!process.env.SETUP_KEYSTORE_PASSWORD || process.env.SETUP_KEYSTORE_PASSWORD.length < 12) throw new Error('Use a keystore password of at least 12 characters');

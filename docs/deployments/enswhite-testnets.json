@@ -1,0 +1,50 @@
+{
+  "ens": {
+    "chainId": 11155111,
+    "ENS_ENABLED": "true",
+    "ENS_PARENT_NAME": "enswhite.eth",
+    "ENS_COMPANY_NAME": "acme.enswhite.eth",
+    "ENS_COMPANY_REGISTRY": "0x06f16818c53B703c823f1da435a1aE90D054F5d7",
+    "ENS_REGISTRY_BLOCK": "12074999",
+    "ENS_NAMES_ADDRESS": "0xEA836Fd7E1179777039856c02b70A3328cD3C1f3",
+    "SEPOLIA_RPC_URL": "https://ethereum-sepolia-rpc.publicnode.com",
+    "vendorRegistry": "0xC2C6F30c482B7e3e48CC135c60e981FcaA389d4a",
+    "vendorRegistrar": "0xD36605397FaFefaAe2c3eBfA95af1c732A322B31",
+    "platform": "0xaA25642BeC5f64ECC500bB81a8Def37a82DED496",
+    "transactions": {
+      "attach-parent": "0xd4568b9c479fbdd23a1d83a2c41ab6a0941be1f21f0a5570e302434133cd5a4b",
+      "company-branding-resolver": "0x21c760e127292bc333eb456cbbc43ffa68ae80ffe381b3d65a0db4f773e3aed7",
+      "company-branding": "0xadb4fe5fa1316d447a3d8c0c39e6fd88fa821faf7bd7a907085dda786fdd01bc",
+      "company": "0xa45e48a1a9d55cc71f5d2fe30a964dc217ad9a8bd9eec50dce8f608a2adc845d",
+      "hire-finance": "0xd9f6223b5119d0ddd4de3463dfa0f6282992b90874537470024a7305c3dbcb43",
+      "hire-marketing": "0x397f897d506aa552c32dc0e9f4b06d855bda13778223e7fcd3fae18cddf8d047",
+      "hire-support": "0x443d09189e78a261e2387adb1bfd235006829ded6e092dfeba3ed52d32b25b02",
+      "names-registrar": "0x565c20992f3e79b743387640266b08c504480b7c7e5d1e6b9f485fd55639b8a4",
+      "names": "0x0ab0dfcca19543568d5788d22137e4caa42f03576f1a128e155b7f574d536ab1",
+      "platform-parent": "0xdb8c31374a7a2a8130cf1c40bc7bc676e55456ff66683cf2e975222caa04661a",
+      "platform": "0xf8f21ada7cdff6ddcb4a7bbcd023904ed808bcc1e53b9ee9d57901b2aa0b3622",
+      "resolver-copydesk": "0xf50a0e8545a033e5d7103a934b6708a77a8f38324f8c472373a2084f57b3f003",
+      "resolver-lingualink": "0x83f81df63cf0f1de1e231534da255146c3fada28242517be2084696a24024361",
+      "resolver-pixelpress": "0x9e56ce84541b80200f2b27404baacad1b8960b91a48e3a3af52a46f36680d66f",
+      "sepolia-gas-finance": "0x6b09862dd84c2e35b1ea0b9eaea05b15a9d291a009fb227a824996d43979ad73",
+      "sepolia-gas-marketing": "0xfa6294f89312129824b5c467cdaa486ba1c1556df3f6940913d40d5febc59d71",
+      "sepolia-gas-support": "0x8213787c11435081a6c5752c6e67d8533c63705ab7270502d97c67e5fb7f1aeb",
+      "vendor-copydesk": "0xf5de291c3a0d06332aefdae992b27d163272cd37824ad0a38c84a8859ea7295a",
+      "vendor-lingualink": "0x4ed2a97c4cac17cfe14a1e81532c83879602883dd04e85bf5a464c6120bcab97",
+      "vendor-pixelpress": "0xa8c1e043e76c6d34a9ecaafe76bab701da2f95b293750615c7ff2eadc38acf77",
+      "vendor-registrar": "0xeb00490c6d3c45090cabf3e6496b9f92bb0633330dd854157398ff27f5fed090",
+      "vendors-emancipate": "0x886e36d6a02b56ed3bb3d2febef8bbaf226afa166c3c22bdeac310ea6bfef479",
+      "vendors-name": "0x2510b08022b8494bd880c8412bd5e26d142bcaee03b797bdf8de5574013ba8bd",
+      "vendors-parent": "0xb78a6cfb19e9aa5c7a43fa8699b11e7e0461fde771bd34b9e069ceef217b54f5",
+      "vendors-registrar-role": "0xd3a78bc9261d0ad997847a5a0094da0f6bb4ca89fd86203c539f73a52e041c43",
+      "vendors-registry": "0xaaa0218a2c7b1ddc8327d41b5d9d8171c3e55f9ad111b79172950fb6f3cb001d"
+    }
+  },
+  "whitechain": {
+    "chainId": 1874,
+    "company": "0xbca635f00C07681f10269f69ca293bDB6536D6aB",
+    "deploymentBlock": 12353630,
+    "deploymentTransaction": "0xeb137fd597b606c6c786f5ddbf3553bbde807121691ad4f6456c3da95599a3f5",
+    "poolFundingTransaction": "0x2f42648a93ecaa4809272f5ba78f0bcd7e52eceb112ef81abd6b6c8a4edf17bc"
+  }
+}

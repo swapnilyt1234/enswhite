@@ -5,6 +5,7 @@ broadcast/
 .env.*
 !.env.example
 !.env.company.example
+!.env.ens.example
 node_modules/
 data/
 lib/

@@ -1,7 +1,7 @@
 $ErrorActionPreference='Stop'
 Set-Location -LiteralPath $PSScriptRoot
 $previous=[Environment]::GetEnvironmentVariable('SETUP_KEYSTORE_PASSWORD')
-$secret=Read-Host 'Password for the three separate Relay keystores (at least 12 characters)' -AsSecureString
+$secret=Read-Host 'Password for the three separate EnsWhite keystores (at least 12 characters)' -AsSecureString
 $pointer=[Runtime.InteropServices.Marshal]::SecureStringToBSTR($secret)
 try {
     $env:SETUP_KEYSTORE_PASSWORD=[Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointer)

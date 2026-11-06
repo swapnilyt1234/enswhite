@@ -1,14 +1,21 @@
 {
-  "name": "whitechain-agent-payments",
+  "name": "enswhite",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.13" },
+  "engines": {
+    "node": ">=22.13"
+  },
   "scripts": {
     "start": "node --env-file-if-exists=.env app/server.js",
     "company": "node --env-file-if-exists=.env.company app/run-company.js",
     "test": "node --test app/*.test.js",
-    "check:chain": "node --env-file-if-exists=.env app/check-chain.js"
+    "check:chain": "node --env-file-if-exists=.env app/check-chain.js",
+    "ens:check": "node --env-file-if-exists=.env.ens ens/scripts/bootstrap.js check",
+    "ens:test": "forge test --root ens -vv"
   },
-  "dependencies": { "ethers": "^6.16.0", "express": "^5.1.0" }
+  "dependencies": {
+    "ethers": "^6.17.0",
+    "express": "^5.1.0"
+  }
 }

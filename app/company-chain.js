@@ -18,6 +18,13 @@ export const COMPANY_ABI = [
   'event Paid(bytes32 indexed requestId,address indexed dept,address indexed vendor,uint256 amount,uint256 fee)',
 ];
 export const companyInterface = new Interface(COMPANY_ABI);
+export const IDENTITY_ABI = COMPANY_ABI.filter(x=>!x.startsWith('function pay(')&&!x.startsWith('event Paid(')).concat([
+  'function identityRequired() view returns(bool)',
+  'function pay(address,address,uint256,bytes32,bytes32,uint256,uint256,uint8,bytes32,bytes32,(bytes32 deptNode,bytes32 vendorNode,uint256 weeklyMax,uint256 perCallMax,uint256 nameExpiry,uint256 validUntil),bytes)',
+  'event Paid(bytes32 indexed requestId,address indexed dept,address indexed vendor,uint256 amount,uint256 fee,bytes32 deptNode,bytes32 vendorNode)',
+]);
+const identityInterface = new Interface(IDENTITY_ABI);
+export function parseCompanyLog(log) { return companyInterface.parseLog(log) || identityInterface.parseLog(log); }
 export const boundNonce = (vendor, requestId, salt) => keccak256(AbiCoder.defaultAbiCoder().encode(['address', 'bytes32', 'bytes32'], [vendor, requestId, salt]));
 export const companyDomain = address => ({ name: 'RelayCompany', version: '1', chainId: 1874, verifyingContract: address });
 const ZERO = '0x0000000000000000000000000000000000000000';
@@ -83,7 +90,10 @@ export async function createRealCompanyChain(env, config) {
   try {
     if (base.decimals !== 6) throw new Error('RelayCompany expects six-decimal USDT');
     const address = getAddress(env.RELAY_COMPANY_ADDRESS);
-    const contract = new Contract(address, COMPANY_ABI, base.provider);
+    const identityEnabled = env.ENS_ENABLED === 'true';
+    const contract = new Contract(address, identityEnabled ? IDENTITY_ABI : COMPANY_ABI, base.provider);
+    const paymentInterface = identityEnabled ? identityInterface : companyInterface;
+    if (identityEnabled && !(await contract.identityRequired())) throw new Error('ENS mode requires a newly deployed EnsWhiteCompany contract');
     if (getAddress(await contract.token()) !== getAddress(TOKEN) || await contract.feeBps() !== 100n) throw new Error('Wrong company token or fee policy');
     const relayJson = await readFile(env.RELAYER_KEYSTORE, 'utf8');
     const relayer = (await Wallet.fromEncryptedJson(relayJson, env.RELAYER_PASSWORD)).connect(base.provider);
@@ -94,7 +104,7 @@ export async function createRealCompanyChain(env, config) {
     if (!Number.isSafeInteger(Number(env.COMPANY_DEPLOYMENT_BLOCK)) || Number(env.COMPANY_DEPLOYMENT_BLOCK) < 1) throw new Error('Set COMPANY_DEPLOYMENT_BLOCK');
     const start = Number(env.COMPANY_DEPLOYMENT_BLOCK);
     return {
-      mode: 'testnet', address, provider: base.provider, domain: base.domain, companyDomain: companyDomain(address), relayerAddress: relayer.address,
+      mode: 'testnet', address, provider: base.provider, domain: base.domain, companyDomain: { ...companyDomain(address), name: identityEnabled ? 'EnsWhiteCompany' : 'RelayCompany' }, relayerAddress: relayer.address,
       attester,
       async checkConfiguration() {
         if (getAddress(await contract.finance()) !== getAddress(config.financeAddress)) throw new Error('Run the owner setup commands to configure Finance');
@@ -115,7 +125,11 @@ export async function createRealCompanyChain(env, config) {
         if (kind === 'topup') { method = 'topUp'; args = [data.paymentId, data.amount, data.deadline, data.signature]; }
         else if (kind === 'allocation') { method = 'allocateBySig'; args = [data.dept, data.amount, data.nonce, data.deadline, data.signature]; }
         else { const a = data.authorization, sig = Signature.from(data.signature); method = 'pay'; args = [data.dept, data.vendor, data.amount, data.requestId, data.salt, a.validAfter, a.validBefore, sig.v, sig.r, sig.s]; }
-        const tx = await relayer.populateTransaction({ to: address, data: companyInterface.encodeFunctionData(method, args), chainId: 1874 });
+        if (kind === 'payment' && identityEnabled) {
+          if (!data.identity || !data.policySignature) throw new Error('Missing fresh ENS policy');
+          args.push(data.identity,data.policySignature);
+        }
+        const tx = await relayer.populateTransaction({ to: address, data: paymentInterface.encodeFunctionData(method, args), chainId: 1874 });
         if (tx.gasLimit > 600000n) throw new Error('Relayer per-transaction gas cap exceeded');
         if (tx.gasLimit * (tx.maxFeePerGas ?? tx.gasPrice ?? 0n) > 50000000000000000n) throw new Error('Relayer maximum transaction fee exceeded');
         const raw = await relayer.signTransaction(tx); return { raw, hash: keccak256(raw) };
@@ -138,11 +152,11 @@ export async function createRealCompanyChain(env, config) {
 
 export async function readCompanyEvents(provider, address, start, vendor) {
   const end = await provider.getBlockNumber(), output = [];
-  const paid = companyInterface.getEvent('Paid').topicHash;
+  const paid = [companyInterface.getEvent('Paid').topicHash,identityInterface.getEvent('Paid').topicHash];
   for (let from = start; from <= end; from += 2000) {
     const logs = await provider.getLogs({ address, fromBlock: from, toBlock: Math.min(from + 1999, end), ...(vendor ? { topics: [paid, null, null, '0x' + vendor.slice(2).toLowerCase().padStart(64, '0')] } : {}) });
     for (const log of logs) {
-      const event = companyInterface.parseLog(log); if (!event) continue;
+      const event = parseCompanyLog(log); if (!event) continue;
       const fields = {};
       event.fragment.inputs.forEach((field, index) => { fields[field.name] = String(event.args[index]); });
       if (['Paid', 'ToppedUp', 'Allocated'].includes(event.name)) output.push({ ...fields, kind: { Paid: 'payment', ToppedUp: 'topup', Allocated: 'allocation' }[event.name], hash: log.transactionHash, block: log.blockNumber });

@@ -14,12 +14,16 @@ export function createCompanyApp(company, origin) {
   });
   sessionRoutes(app, company, origin, { login: true });
   app.get('/api/state', async (req, res) => res.json(await company.state()));
+  app.get('/api/vendors/:id/earnings',async(req,res)=>res.json(await company.vendorEarnings(req.params.id)));
+  app.post('/api/ens/manage',async(req,res)=>res.json(await company.manageENS(req.body.action,req.body.label,req.body.term)));
+  app.post('/api/ens/signup',async(req,res)=>res.json(await company.signupENS(req.body.label)));
+  app.post('/api/ens/budget',async(req,res)=>res.json(company.updateENSBudget(req.body.label,req.body.amount,req.get('idempotency-key'))));
   app.post('/api/orders', async (req, res) => res.json(await company.order()));
   app.post('/api/simulate', async (req, res) => { const result = await company.simulate(req.body.orderId); await company.processJobs(); res.json(result); });
   app.post('/api/allocate', async (req, res) => { const result = await company.allocate(); await company.processJobs(); res.json(result); });
   app.post('/api/missions', async (req, res) => { const result = await company.mission(req.body.title, req.get('idempotency-key')); await company.processJobs(); res.json(result); });
   app.post('/api/approvals/:id', async (req, res) => { company.approve(req.params.id, req.body.approved); await company.processJobs(); res.json({ accepted: true }); });
-  app.get('/api/books.csv', async (req, res) => res.type('csv').set('Content-Disposition', 'attachment; filename="relay-books.csv"').send(await company.csv()));
+  app.get('/api/books.csv', async (req, res) => res.type('csv').set('Content-Disposition', 'attachment; filename="enswhite-books.csv"').send(await company.csv()));
   app.get('/api/x402/supported', (req, res) => res.json({ kinds: [{ x402Version: 2, scheme: COMPANY_SCHEME, network: NETWORK }], extensions: [], signers: { [NETWORK]: [company.chain.relayerAddress] } }));
   app.post('/api/x402/verify', async (req, res) => {
     try { await company.verify(req.body.paymentPayload); res.json({ isValid: true, payer: req.body.paymentPayload.payload.authorization.from }); }
@@ -39,7 +43,7 @@ export function createCompanyApp(company, origin) {
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const port = Number(process.env.PORT || 3003), origin = (process.env.APP_ORIGIN || `http://localhost:${port}`).trim();
   const company = await createCompany();
-  const server = createCompanyApp(company, origin).listen(port, '127.0.0.1', () => console.log(`Relay agent company: ${origin}\n${company.chain.mode} · custom x402 relay-receive · three departments, three independent vendors`));
+  const server = createCompanyApp(company, origin).listen(port, '127.0.0.1', () => console.log(`EnsWhite agent company: ${origin}\n${company.chain.mode} · custom x402 enswhite-receive · three departments, three independent vendors`));
   const timer = setInterval(() => { void company.processJobs().catch(() => {}); }, 5000); timer.unref();
   void company.processJobs().catch(() => {});
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => { clearInterval(timer); server.close(async () => { await company.close(); }); });

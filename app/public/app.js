@@ -87,7 +87,7 @@ $('topup').addEventListener('click', () => act(async () => {
   await loadCheckout();
   await new Promise(resolve => {
     const checkout = new window.Razorpay({ key: order.keyId, order_id: order.id, amount: order.amount, currency: order.currency,
-      name: 'Relay · Test mode', description: '₹100 sandbox payment → 1 test USDT agent budget',
+      name: 'EnsWhite · Test mode', description: '₹100 sandbox payment → 1 test USDT agent budget',
       handler() { status('Checkout completed. Waiting for the verified payment webhook and treasury funding.'); resolve(); },
       modal: { ondismiss() { status('Checkout closed. No credit is issued until payment is captured and verified.'); resolve(); } },
       theme: { color: '#185d45' },
