@@ -35,11 +35,11 @@ This is a custodial testnet service: the operator owns company namespaces/contra
 
 ## Verification status
 
-All 90 backend tests pass, including partial teams, visitor isolation, signer recovery, filtered reputation and feedback-file integrity. The six-decision GPT-6 Luna workflow passed using the real model with simulated settlement: Marketing five decisions, Support two, Finance two, plus all three vendor deliveries. Old saved orders and offline flows remain compatible. Isolated browser testing covered onboarding queueing, funding, allocations, work, approvals and a saved simulated employee review.
+All 93 backend tests pass, including partial teams, visitor isolation, signer recovery, filtered reputation and feedback-file integrity. The six-decision GPT-6 Luna workflow passed using the real model with simulated settlement: Marketing five decisions, Support two, Finance two, plus all three vendor deliveries. Old saved orders and offline flows remain compatible. Isolated browser testing covered onboarding queueing, funding, allocations, work, approvals and a saved simulated employee review.
 
 Vendor registration is now live and independently verified: CopyDesk #11305, PixelPress #11306 and LinguaLink #11307 are owned by their separate payee wallets. Live `getSummary` calls using the existing three department clients succeed and return zero reviews (unrated), as expected before feedback. Public registration receipts are in `docs/deployments/vendor-identities.json`.
 
-Fresh visitor provisioning and reputation broadcasts have **not** yet been verified live: they require the operator’s local keystore unlock and the activation above. Existing Acme deployment/mission proofs remain historical evidence, not proof of this new provisioning path. No mainnet action is involved. Fiat is simulated and test tokens have no monetary value.
+Fresh visitor provisioning is now verified live for `cedar-studio-1107.enswhite.eth`: 33 confirmed transactions, a separate Whitechain contract at `0xDD9E8EdD5488B9DfBb3AE6f98FdA10b3E7d3EbAd`, 5 test USDT in its uncredited pool, and verified Finance/Marketing/Support identities #11308/#11309/#11310. Public transaction evidence is in `docs/deployments/cedar-studio-1107.json`. Its checkout, mission and reputation broadcasts remain pending. Existing Acme deployment/mission proofs remain historical evidence, not proof of this new provisioning path. No mainnet action is involved. Fiat is simulated and test tokens have no monetary value.
 
 Local browser previews (isolated simulated workspace; these screenshots do not claim a new onchain deployment):
 

@@ -1,0 +1,230 @@
+{
+  "companyName": "cedar-studio-1107.enswhite.eth",
+  "whitechainCompany": "0xDD9E8EdD5488B9DfBb3AE6f98FdA10b3E7d3EbAd",
+  "deploymentBlock": "12404322",
+  "ensRegistry": "0x460e77c48b03DAf68c6a1b03b1943680f286D205",
+  "employees": [
+    {
+      "label": "finance",
+      "name": "finance.cedar-studio-1107.enswhite.eth",
+      "agentId": "11308",
+      "owner": "0xF552006E56226E1258DAa207B50633C924A4d700",
+      "registry": "0x8004A818BFB912233c491871b3d84c89A494BD9e"
+    },
+    {
+      "label": "marketing",
+      "name": "marketing.cedar-studio-1107.enswhite.eth",
+      "agentId": "11309",
+      "owner": "0x14F7F2b553E1064F28a93B06F6f2d45902D92959",
+      "registry": "0x8004A818BFB912233c491871b3d84c89A494BD9e"
+    },
+    {
+      "label": "support",
+      "name": "support.cedar-studio-1107.enswhite.eth",
+      "agentId": "11310",
+      "owner": "0x1c0C7D7F9adCff272D924ca7816159f67042e55A",
+      "registry": "0x8004A818BFB912233c491871b3d84c89A494BD9e"
+    }
+  ],
+  "transactions": [
+    {
+      "step": "launch-company",
+      "chain": 11155111,
+      "state": "confirmed",
+      "hash": "0x4d1fefe9242815773a57980f356214e35c818e7855cf4521351e6cc511804c9e"
+    },
+    {
+      "step": "fund-finance",
+      "chain": 11155111,
+      "state": "confirmed",
+      "hash": "0xbd416b91dbb5d7b7bbc6b24facf8ee0242ba66113ca26b8a6d8b7ed03c2899e1"
+    },
+    {
+      "step": "hire-finance",
+      "chain": 11155111,
+      "state": "confirmed",
+      "hash": "0x492c0f761e548fa340f68bb96e33644ccf50eed3e0b600af201878fdab8dbca5"
+    },
+    {
+      "step": "identity-finance",
+      "chain": 11155111,
+      "state": "confirmed",
+      "hash": "0x6f1371df7531392b095982325e2fbaef220d6d1840a8a76c1ef603db2e897d00"
+    },
+    {
+      "step": "metadata-finance",
+      "chain": 11155111,
+      "state": "confirmed",
+      "hash": "0x7ffb07568065e223a5da25973f1e40536d75d8ebd694d3f3ded0a9ca613cd774"
+    },
+    {
+      "step": "ensip25-finance",
+      "chain": 11155111,
+      "state": "confirmed",
+      "hash": "0x0dccb71fd09b9eded200edc094943288db529fde671fdd37ba5a8b2a3e02ba1a"
+    },
+    {
+      "step": "ensip26-finance",
+      "chain": 11155111,
+      "state": "confirmed",
+      "hash": "0x75b340cef3844f740a0205eec7ce4b1ec0fea3f7da3367dc4bb6206f72e7e75b"
+    },
+    {
+      "step": "web-finance",
+      "chain": 11155111,
+      "state": "confirmed",
+      "hash": "0x421d8758065b4e64b2185fb9d38bcc94ff937a420d524a82ccd97f436e1219cc"
+    },
+    {
+      "step": "fund-marketing",
+      "chain": 11155111,
+      "state": "confirmed",
+      "hash": "0x7368b1ae1e2e7ddcd774b6324089fc164fdb771e366253c509758de90ae2b6a6"
+    },
+    {
+      "step": "hire-marketing",
+      "chain": 11155111,
+      "state": "confirmed",
+      "hash": "0x51349994e14beda71f7c9fe5ac1d68c363cd5dd7f3dba1a2a1af620f1db0fae1"
+    },
+    {
+      "step": "identity-marketing",
+      "chain": 11155111,
+      "state": "confirmed",
+      "hash": "0x5927d6be4f2020aecc9f517e9bc6f7d795beb3fe182e97e51bac3d99ce403edb"
+    },
+    {
+      "step": "metadata-marketing",
+      "chain": 11155111,
+      "state": "confirmed",
+      "hash": "0x9befe19344697829ed7c9b0b977bd031c045675a7957fd453f368444f1fad770"
+    },
+    {
+      "step": "ensip25-marketing",
+      "chain": 11155111,
+      "state": "confirmed",
+      "hash": "0x6823fb44c91a1a57a64023747276ac405a189cd09c834084f14b100b6551224c"
+    },
+    {
+      "step": "ensip26-marketing",
+      "chain": 11155111,
+      "state": "confirmed",
+      "hash": "0x8ce8e0c0c4ba3fa498104560f51aeab32247f2cb1d67c4344784401a84fc03a1"
+    },
+    {
+      "step": "web-marketing",
+      "chain": 11155111,
+      "state": "confirmed",
+      "hash": "0x18c94ae1854fde48549d9c7f3b743dc01e02fde5c5e62b0d614cf9d59297d8dc"
+    },
+    {
+      "step": "fund-support",
+      "chain": 11155111,
+      "state": "confirmed",
+      "hash": "0x44a8bc4691ce48ba03f4d3bdbf29e31aa0fd01c7c5bf7fe04cbe9aec28780f05"
+    },
+    {
+      "step": "hire-support",
+      "chain": 11155111,
+      "state": "confirmed",
+      "hash": "0xa478f014beded747de097aabc42285a61ebae427895259ed935fb4696ea0c4b0"
+    },
+    {
+      "step": "identity-support",
+      "chain": 11155111,
+      "state": "confirmed",
+      "hash": "0x9ae17236faa046f672aec6adb9c8edbfaebcfccbe3fe3e060b45c34625d4abcc"
+    },
+    {
+      "step": "metadata-support",
+      "chain": 11155111,
+      "state": "confirmed",
+      "hash": "0xda59df6541b53645dadab1b0345bce51508170b886b623d1e9d552eb95404baf"
+    },
+    {
+      "step": "ensip25-support",
+      "chain": 11155111,
+      "state": "confirmed",
+      "hash": "0xaf933741e32de188f5042f64e65d165ff4d22124bcf93bfb020c1f4cda5c5722"
+    },
+    {
+      "step": "ensip26-support",
+      "chain": 11155111,
+      "state": "confirmed",
+      "hash": "0x013d2c0ba7fc1c4f92c0d510182f942fd00b8130593276b391d2ed388ea321ec"
+    },
+    {
+      "step": "web-support",
+      "chain": 11155111,
+      "state": "confirmed",
+      "hash": "0x32e593c11c6aee8daa8067ee2a5b2883b3c8cf0b23e88b905ed1b889a8ba0eac"
+    },
+    {
+      "step": "fund-reviewer",
+      "chain": 11155111,
+      "state": "confirmed",
+      "hash": "0xef148b3e03d27e8798c52f76debbfe58c080189d86748a8e3e87f0d8be81b5cf"
+    },
+    {
+      "step": "whitechain-company",
+      "chain": 1874,
+      "state": "confirmed",
+      "hash": "0x3240e6ad1b4404e8f36ff0a78a59cd8cd502cc13f2c66dc9aa65f8239f81825e"
+    },
+    {
+      "step": "whitechain-finance",
+      "chain": 1874,
+      "state": "confirmed",
+      "hash": "0x65202c4326118184a870d70a9e2c0c1b306ba804af4ef51d61d57c6a9b00e89c"
+    },
+    {
+      "step": "limits-finance",
+      "chain": 1874,
+      "state": "confirmed",
+      "hash": "0xa3c32fb6e8c0262a48df1bf13abbe986d77c09d7608f06e419a1796478fef22b"
+    },
+    {
+      "step": "limits-marketing",
+      "chain": 1874,
+      "state": "confirmed",
+      "hash": "0x8c238048bd778863a54c6b394a4e515d78ea3894b8b3e357813d7ca1cbed3df7"
+    },
+    {
+      "step": "limits-support",
+      "chain": 1874,
+      "state": "confirmed",
+      "hash": "0xd482276c461c021f8f68c9cb55d3b8d077f424e06aa5c46dc5cc632677d0402c"
+    },
+    {
+      "step": "vendor-copydesk",
+      "chain": 1874,
+      "state": "confirmed",
+      "hash": "0x0d16a3a9d720dca00ea243ece67a4bac79e007f623d3314c251a3622b50002e8"
+    },
+    {
+      "step": "vendor-pixelpress",
+      "chain": 1874,
+      "state": "confirmed",
+      "hash": "0x76987701b8d183f1583b2aebfb8b3ba24703fdf36fb2413a1e2c65e1650a6a35"
+    },
+    {
+      "step": "vendor-lingualink",
+      "chain": 1874,
+      "state": "confirmed",
+      "hash": "0x1b50871ad1ec352e9277e74440693c8b62f1a0f9e6aefe9de89b31c6444fa367"
+    },
+    {
+      "step": "relayer-gas",
+      "chain": 1874,
+      "state": "confirmed",
+      "hash": "0xbb9006f2c6b85e90caacd24eb934fe2c00c951bcaf9ef0963e8982e28024028d"
+    },
+    {
+      "step": "test-pool",
+      "chain": 1874,
+      "state": "confirmed",
+      "hash": "0x34c3fe833988fadf98c8e72f066b00250ba69ef3b63c61e1e81822ba9f8a324d"
+    }
+  ],
+  "status": "Provisioned and independently verified; checkout, mission and reviews pending"
+}
