@@ -29,8 +29,8 @@ export async function planMission(mission, env) {
   };
   // The model proposes work; this allowlisted tool plan and downstream policies own all spending permissions.
   return { source: [marketing.source, support.source].join(' / '), tasks: [
-    ...proposals(marketing.text,['copydesk','pixelpress'],marketingFallback).map(row=>({dept:'marketing',...row})),
-    ...proposals(support.text,['lingualink'],supportFallback).map(row=>({dept:'support',...row})),
+    ...proposals(marketing.text,['copydesk','pixelpress'],marketingFallback).map(row=>({dept:'marketing',vendor:row.vendor,task:row.task})),
+    ...proposals(support.text,['lingualink'],supportFallback).map(row=>({dept:'support',vendor:row.vendor,task:row.task})),
   ] };
 }
 

@@ -88,7 +88,7 @@ export async function createRealCompanyChain(env, config) {
     const relayJson = await readFile(env.RELAYER_KEYSTORE, 'utf8');
     const relayer = (await Wallet.fromEncryptedJson(relayJson, env.RELAYER_PASSWORD)).connect(base.provider);
     const attester = await Wallet.fromEncryptedJson(await readFile(env.ATTESTER_KEYSTORE, 'utf8'), env.ATTESTER_PASSWORD);
-    if (relayer.address === attester.address || relayer.address === getAddress(env.TREASURY_ADDRESS)) throw new Error('Relayer, treasury and attester must be separate wallets');
+    if (relayer.address === attester.address || relayer.address === getAddress(env.TREASURY_ADDRESS) || attester.address === getAddress(env.TREASURY_ADDRESS)) throw new Error('Relayer, treasury and attester must be separate wallets');
     if (getAddress(await contract.attester()) !== attester.address) throw new Error('Attester does not match deployed contract');
     if (await base.token.balanceOf(relayer.address) !== 0n || await base.token.balanceOf(attester.address) !== 0n || await base.provider.getBalance(attester.address) !== 0n) throw new Error('Relayer must hold only WBT; attester must hold no tokens');
     if (!Number.isSafeInteger(Number(env.COMPANY_DEPLOYMENT_BLOCK)) || Number(env.COMPANY_DEPLOYMENT_BLOCK) < 1) throw new Error('Set COMPANY_DEPLOYMENT_BLOCK');

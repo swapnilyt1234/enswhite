@@ -1,13 +1,15 @@
 {
   "0": "Run a Whitechain node",
   "1": "Whitechain developer playbook",
-  "2": "Steps",
-  "3": "payments.js",
+  "2": "company-ui.js",
+  "3": "company.js",
   "4": "Steps",
   "5": "payments.test.js",
-  "6": "Connecting to Whitechain Sepolia",
-  "7": "package.json",
+  "6": "Steps",
+  "7": "company-server.js",
   "8": "app.js",
-  "9": "Relay — Whitechain agent payment lab",
-  "10": "x402.js"
+  "9": "Relay",
+  "10": "node",
+  "11": "agents.js",
+  "12": "run-company.js"
 }

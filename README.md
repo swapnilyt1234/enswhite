@@ -1,96 +1,127 @@
-# Relay — Whitechain agent payment lab
+# Relay
 
-A small working demo: a sandbox fiat payment funds a per-session agent wallet; that agent signs an EIP-3009 USDT payment for a sample API report; the business relayer pays WBT gas. The report is deterministic demo content, not an AI-generated security audit.
+**Hire AI departments, give each a budget, and the books close themselves.**
 
-**Fiat is simulated. There is no fiat-to-USDT conversion. Whitechain test USDT has no real monetary value.** The demo allocation is fixed: **INR 100 in Razorpay test mode → 1 test USDT**, with each report costing **0.1 test USDT**. This is a demo budget allocation, not an exchange rate.
+Relay is the money layer for a solo founder's agent company: corporate cards and expense reports for AI employees. Marketing buys copy and a banner. Support buys a translated FAQ. Finance signs allocations, reconciles receipts and flags above-threshold spending. Every vendor payment goes to an independent vendor wallet; departments never pay each other.
+
+**Fiat is simulated. This runs on Whitechain Sepolia and uses test USDT with no real monetary value. No fiat-to-USDT conversion occurs.** The demo allocation is INR 500 → 5 test USDT (INR 100 per test USDT for the founder's display). This is a fixed demo allocation, not an exchange rate.
 
 ## Run locally
 
-Requires Node.js 22.13+ (built-in experimental SQLite).
+Requires Node.js 22.13+, Git and, for Solidity, Foundry (tested with 1.4.4).
 
 ```powershell
-npm install
+git clone --recurse-submodules https://github.com/swapnilyt1234/relay-agent-company.git
+cd relay-agent-company
+npm ci
 npm test
-npm start
+npm run company
 ```
 
-Open http://localhost:3000. Click **Simulate ₹100 sandbox payment**, then **Buy report with agent**. Defaults simulate both the payment provider and chain locally; simulated hashes are never linked to an explorer. The agent wallet persists with its HttpOnly browser session cookie. Keep that browser session to return to the same wallet.
+Open **http://localhost:3003**. The launcher starts four independent Node processes: the company on 3003, CopyDesk on 4001, PixelPress on 4002 and LinguaLink on 4003. Stop with Ctrl+C. Stop the simulated vendor group before running testnet vendors, because both modes use ports 4001–4003.
 
-## Connect real testnet settlement
+1. **Add INR 500**: locally simulates a captured payment, attestation and company credit.
+2. **Approve weekly allocations**: Finance signs 60/30/10 allocations within weekly caps.
+3. Open **Mission** and launch the Diwali campaign.
+4. CopyDesk and LinguaLink deliver after payment. PixelPress waits under **Approvals** because its INR 20 price exceeds Marketing's INR 15 threshold.
+5. Approve the banner. PixelPress verifies its payment and delivers an SVG.
+6. Open **Books** for the event-derived ledger and accountant CSV. **Show onchain** reveals addresses and, in testnet mode, transaction links.
 
-The code for real Razorpay test mode and Whitechain Sepolia is implemented. End-to-end execution needs your Razorpay account, a publicly reachable HTTPS endpoint, a funded encrypted keystore, and your local confirmation. No secrets belong in chat.
+Simulated payments are labeled and never linked to an explorer. The earlier payment lab is preserved with `npm start`; it uses separate state. See [its notes](docs/payment-lab.md).
 
-1. In Razorpay **test mode**, create API keys. Configure **captured** payments with automatic capture, and create a webhook for `payment.captured` at `https://YOUR-APP/api/webhooks/razorpay`. Choose a webhook secret. Checkout success alone never credits a user; the signed webhook and API verification must both pass. See [Razorpay webhook validation](https://razorpay.com/docs/webhooks/validate-test/).
-2. Route your own public HTTPS domain or a supported tunnel to `http://127.0.0.1:3001`. Preserve the public Host header. Use that public origin to open the dashboard. Razorpay does not send webhooks directly to localhost and blocks some tunnel providers; check its current documentation.
-3. Your `whitechain-testnet` Foundry keystore is used as treasury and relayer by default. It needs **both test USDT and test WBT**. Get WBT from [the faucet](https://faucet.testnet.whitechain.io) and acquire test USDT through the Whitechain testnet ecosystem as advised by the organizers. WBT alone cannot fund the agent's USDT balance. For separate wallets, set `TREASURY_KEYSTORE` and `RELAYER_KEYSTORE` before launching.
-4. Run the interactive launcher in your own PowerShell terminal:
+## Departments and independent vendors
+
+| Department | Weekly cap | Per-call cap | Daily cap | Approval above |
+| --- | ---: | ---: | ---: | ---: |
+| Marketing | INR 300 | INR 50 | INR 300 | INR 15 |
+| Support | INR 150 | INR 20 | INR 150 | INR 10 |
+| Finance | INR 50 | INR 10 | INR 50 | INR 5 |
+
+| Vendor | Service | Gross price | Net receipt | Port |
+| --- | --- | ---: | ---: | ---: |
+| CopyDesk | Advertising copy | 0.1 test USDT / INR 10 | 0.099 test USDT | 4001 |
+| PixelPress | SVG campaign banner | 0.2 test USDT / INR 20 | 0.198 test USDT | 4002 |
+| LinguaLink | Hindi / Marathi FAQ | 0.1 test USDT / INR 10 | 0.099 test USDT | 4003 |
+
+Each vendor has its own encrypted wallet, process, order database and earnings page. In testnet mode, `/api/earnings` reads `Paid` events directly from Whitechain filtered by its address. Before delivery, the vendor independently checks the transaction receipt, company contract, request ID, department, vendor and amount. It never trusts a backend declaration of payment. The local simulator uses an explicitly labeled local event store.
+
+## What enforces the money
+
+[RelayCompany.sol](src/RelayCompany.sol) implements:
+
+- `topUp`: EIP-712 attestation credits only prefunded USDT. Each Razorpay payment ID works once. The backend first verifies the exact raw webhook HMAC and independently checks captured status, local order, INR currency and amount through Razorpay's API.
+- `allocate`: owner or Finance transfers credited funds to a registered department.
+- `allocateBySig`: Finance signs an allocation; the relayer pays gas. Finance therefore needs no WBT. Its nonce prevents replay.
+- `registerVendor` / `setLimits`: owner-only vendor prices and department per-call/day caps.
+- `pay`: recomputes `keccak256(abi.encode(vendor, requestId, salt))`, checks the registered price, call/day limits and request replay, then executes the department's signed `ReceiveWithAuthorization`. Only the named recipient, RelayCompany, can execute it. The contract sends the vendor the amount minus 1% and emits `Paid`.
+- `withdrawFees`: owner-only withdrawal of the recorded USDT fee pool. Company credit is not withdrawable as fees. This does not automatically convert USDT to WBT.
+
+The backend reserves budget before signing, enforces weekly caps and founder thresholds, and records approval decisions. Models may propose allowed vendor work; they never choose signing keys, wallet addresses, prices or permissions. A compromised department key can lose its allocated token balance; **there is no claim that a stolen key cannot transfer tokens directly**. Department wallets hold zero WBT and only their allocations.
+
+Signed transactions are saved before broadcast. Unknown broadcasts keep their original bytes and reservations. Vendor delivery retries after confirmed payment do not charge again. Finance signs internal allocations; departments only pay external vendors.
+
+The relayer holds WBT and no USDT. The attester holds neither asset and signs payment confirmations only. Treasury prefunding is signed by the separate USDT treasury and relayed using WBT gas. Relayer code checks a minimum gas balance, caps each transaction at 600,000 gas and estimated 0.05 WBT, and limits newly signed jobs to 120 per day in this single-process demo.
+
+## Optional model-backed agents
+
+Without credentials the UI explicitly labels **seeded fallback** briefs, copy and FAQ. PixelPress deterministically renders an SVG. With a model, Marketing chooses copy, a banner or both, and Support chooses a translation brief; code validates the resulting vendor choices and ignores untrusted extra fields.
+
+Copy [.env.company.example](.env.company.example) to `.env.company`. To enable model-backed work, set `AGENT_MODE=llm`, `OPENAI_API_KEY`, and an `OPENAI_MODEL` available to your account. Calls use the [OpenAI Responses API](https://developers.openai.com/api/docs/guides/text), with an eight-second timeout and fallback. The company loads its own `.env.company`, keeping the original lab's `.env` separate. Never commit API keys.
+
+## Real company deployment
+
+The earlier payment lab already completed real testnet USDT payments. The new [RelayCompany is deployed and verified](https://explorer.testnet.whitechain.io/address/0xD36605397FaFefaAe2c3eBfA95af1c732A322B31/contracts) on Whitechain Sepolia, at deployment block **12328348**. Owner configuration, pool funding and a live company mission must also complete; a local fork or simulated run is not evidence of a live mission. The earlier wallet and balance are not silently migrated.
+
+Run these from `C:\Users\swapn\Desktop\ethglobal` in your own PowerShell terminal:
+
+1. Run `npm ci`, `git submodule update --init --recursive`, `forge build` and `forge test -vv`.
+2. Run `./prepare-company.ps1`. It creates encrypted `relay-relayer`, `relay-treasury`, `relay-attester` keystores, department wallets and vendor wallets, without printing private keys or overwriting existing keystores. It prints the exact `forge create --broadcast --verify` command with constructor arguments last. Run that command.
+3. Run its two printed funding commands: **0.2 test WBT to the relayer** and **10 test USDT to the treasury**, from your existing business wallet. Keep the attester empty.
+4. Read the deployment block from the explorer. Run `./configure-company.ps1 -CompanyAddress 0xYOUR_COMPANY -DeploymentBlock YOUR_BLOCK`. After a summary and confirmation, it registers Finance, three department limits and three vendor prices using seven owner transactions.
+5. Run `./fund-company-pool.ps1`. After confirmation, the treasury signs a **10 test USDT** transfer into the pool; the separate relayer submits it and pays gas. The helper saves the signed transaction before sending. Do not delete that journal to blindly repeat a pending transfer.
+6. Stop the simulated vendor group and run `./start-company-testnet.ps1`. Enter your public HTTPS origin forwarded to **3004**, Razorpay TEST credentials, relayer and attester passwords, and a founder sign-in password of at least 12 characters. Review the signing policy and type `yes`.
+7. Set Razorpay's test webhook to **`https://YOUR-ORIGIN/api/webhooks/razorpay`**, event **`payment.captured`**, with the same webhook secret. Use automatic capture. The URL path is required; `/` returns 404. [Razorpay webhook validation](https://razorpay.com/docs/webhooks/validate-test/).
+8. Open the public app, sign in, make the INR 500 **test-mode** payment, allocate, launch a mission and approve the banner. Record the actual company `Paid` links from Books.
+
+All passwords are entered locally and passed through process environments, never command arguments or chat. Private state lives under `data/company/<mode>` and `data/vendors/<mode>`. Department/vendor keys use AES-256-GCM; the role wallets use encrypted Ethereum keystores. Back up the encrypted database and local encryption key together and restrict OS access. Losing keys or founder access is not recoverable through this demo. Changing modes or company addresses requires a fresh company data directory.
+
+## Custom x402 scheme
+
+The company implements **`relay-receive`**, a custom scheme over x402 v2 HTTP headers on **`eip155:1874`**. It is deliberately **not called standard `exact`**: that scheme normally signs `TransferWithAuthorization`, whereas Relay signs `ReceiveWithAuthorization` to an enforcing contract.
+
+Vendors return `402` with `PAYMENT-REQUIRED`. Relay checks policy, reserves budget, signs a vendor/order-bound authorization and relays `pay`. `PAYMENT-RESPONSE` carries the confirmed transaction, which the vendor verifies before delivery. Authenticated facilitator endpoints are `/api/x402/supported`, `/api/x402/verify` and `/api/x402/settle`. This is a company-specific facilitator, not a hosted Whitechain service or universal SDK integration. References: [x402 v2](https://github.com/coinbase/x402/blob/main/specs/x402-specification-v2.md), [HTTP transport](https://github.com/coinbase/x402/blob/main/specs/transports-v2/http.md).
+
+## Checks and transaction evidence
 
 ```powershell
-.\start-testnet.ps1
-```
-
-It prompts privately for API secrets and keystore passwords, prints the signing policy, and asks for `yes` before starting the automatic testnet signer. Secrets are passed to Node through the process environment, never CLI arguments, and previous environment values are restored on exit. The launcher uses port **3001**, leaving the simulated preview on port 3000, and stores real testnet state in `data/testnet`.
-
-5. Open the public app URL, finish a **test-mode** INR 100 Razorpay checkout, wait for verified credit and a confirmed treasury-to-agent transfer, and buy a report. The dashboard links each real transaction to Blockscout. For the demo, record the actual **agent-to-merchant USDT payment** explorer URL from Payment activity and use it in your submission. This repository does not claim an unexecuted payment occurred.
-
-No endpoint accepts raw private keys or passwords. Your generated agent wallets are custodial: their signing keys are encrypted using AES-256-GCM with a local `wallet.key` file. Treat the entire data directory as secret, restrict OS access, and back up both the database and encryption key together. Losing the key or session can make an agent wallet inaccessible through this demo. The data directory and `.env` files are ignored by Git.
-
-For manual configuration, see [.env.example](.env.example). Only `rzp_test_` keys and chain 1874 are accepted. Real testnet transfers cannot be enabled with the local payment simulator. Use a **new DATA_DIR** whenever changing payment or chain mode; simulated credit must never become real spending credit.
-
-## What is checked
-
-- HMAC-SHA256 of the exact raw webhook bytes, using timing-safe comparison.
-- Razorpay API independently confirms the captured payment, local order, INR currency and exact amount.
-- Unique payment and order IDs prevent duplicate credit, even across event IDs and retries.
-- Funding must confirm before the credit is spendable. Each purchase reserves budget synchronously, so concurrent calls cannot overspend.
-- EIP-712 signatures bind sender, merchant, amount, validity window, random nonce, chain ID, and token proxy address.
-- The live token's domain separator and chain ID are checked before enabling the signer.
-- Raw signed transactions are persisted **before** broadcast. Network timeouts keep the reservation and retry those same bytes, including after restart. Proven reverts release purchase reservations; failed funding can be explicitly retried without issuing another fiat credit.
-- Access to purchased reports requires the same session and a confirmed token transfer. Unknown/RPC failures never unlock reports. Successful receipts must contain the expected token Transfer log.
-- Host/origin checks, HttpOnly SameSite cookies, request-size limits and per-session order limits protect the local demo's HTTP boundary.
-
-## Network evidence
-
-Read-only live check: `npm run check:chain`.
-
-- Whitechain Sepolia: `eip155:1874`.
-- Test USDT proxy: [0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7](https://explorer.testnet.whitechain.io/address/0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7).
-- The explorer-linked implementation exposes `transferWithAuthorization`, `receiveWithAuthorization`, `authorizationState`, and `permit`: [TetherTokenV2](https://explorer.testnet.whitechain.io/address/0x26425662D126412128967ECf0a02EC48573026F7/contracts).
-- Live proxy reads on November 6, 2026 (Asia/Calcutta): 6 decimals; EIP-712 name `Tether USD`, version `1`; matching domain separator for chain 1874 and the proxy address. The app uses the live result, not the implementation address, for signing.
-- Earlier storage test contract: [TestContract, deployed and verified](https://explorer.testnet.whitechain.io/address/0xEA836Fd7E1179777039856c02b70A3328cD3C1f3/contracts). **This storage deployment is not a USDT payment.**
-
-## x402, added after the core flow passed
-
-The core flow completed on Whitechain Sepolia:
-
-- [Treasury funded the agent with 1 test USDT](https://explorer.testnet.whitechain.io/tx/0x0d1d24d4c98021cd5ee8f52f5a88254e6aa541af37a7b99b50ab42f5c6d22b53).
-- [Agent paid the merchant 0.1 test USDT](https://explorer.testnet.whitechain.io/tx/0xd93c87461e442eaa13d27cb8471721d7a95036ba91243d688444240349ef305a). This is a real testnet USDT payment, following a Razorpay test-mode payment; it is not a fiat conversion and was made through the direct EIP-3009 flow.
-- [Agent paid the merchant 0.1 test USDT through x402](https://explorer.testnet.whitechain.io/tx/0x69ac20e8501e2345ad7e08855694205d9156174e736d21db831a16cf40e61ddc). The x402 purchase is recorded as confirmed, and its successful chain-1874 receipt contains the matching USDT Transfer from the agent to the merchant. This is the final demo payment proof.
-
-The final layer now implements the [x402 v2 HTTP transport](https://github.com/coinbase/x402/blob/main/specs/transports-v2/http.md) with the `exact` scheme on `eip155:1874`:
-
-1. Browser requests `POST /api/report`; server returns HTTP 402 and a base64-encoded `PAYMENT-REQUIRED` header.
-2. `POST /api/agent/authorize` reserves 0.1 test USDT and produces the agent's signed EIP-3009 authorization. It does **not** submit a transfer. The request needs an `Idempotency-Key` header.
-3. Browser repeats the report request with the base64-encoded `PaymentPayload` in `PAYMENT-SIGNATURE`.
-4. The in-process facilitator verifies the fixed price, token, network, resource, funded session, signature and nonce, then uses the existing persisted transaction worker for settlement.
-5. Only after confirmation, the server returns the report with `PAYMENT-RESPONSE` containing the settlement result. Retries of that same purchase return the saved result without another transfer.
-
-Facilitator base URL: `/api/x402`, with `GET /supported`, `POST /verify`, and `POST /settle` following the [v2 message schemas](https://github.com/coinbase/x402/blob/main/specs/x402-specification-v2.md). This is a deliberately narrow, app-operated facilitator for this report and the app's funded browser sessions, not a public arbitrary-wallet facilitator or a claimed official SDK integration. No hosted Whitechain facilitator is used. Local chain simulation is still explicitly labeled, including when demonstrating the x402 HTTP exchange.
-
-Restart the backend and refresh the page to see **Buy report via x402**. Existing data, wallets, reports and direct-payment API remain available. Signed but unsubmitted authorizations reserve budget for up to five minutes; expiry releases the reservation only after checking that the token nonce is unused. Unknown chain state keeps the reservation.
-
-## Limits
-
-This is a single-process hackathon demo, not a production payments or custody service. Run one backend per database. Browser sessions are capabilities, not full accounts; there is no password recovery, KYC, refund/reconciliation workflow, or external-wallet import. Independent transfers outside the app are not credited to its budget ledger. Never use real fiat, mainnet keys, or valuable tokens. Production requires a separately designed custody and treasury workflow, provider integration, and jurisdiction-specific review.
-
-Ten backend tests cover webhook forgery and duplicate delivery, mismatched payments, concurrent budget reservations, signature tampering/replay boundaries, session isolation, persistence, ambiguous broadcast recovery, the x402 header exchange, idempotent settlement, rejected payment requirements and authorization expiry. Credentialed Razorpay test checkout, treasury funding, direct EIP-3009 settlement and x402 settlement have all passed on Whitechain Sepolia. The payment links above are the corresponding explorer evidence; fiat remains simulated.
-
-An additional **local fork test against the actual testnet USDT contract passed**: treasury funding, EIP-3009 payment submitted by a different caller, zero WBT in the agent wallet, final token balances, nonce consumption and replay rejection. It executes only in Foundry's in-memory fork; it does not broadcast or create an explorer transaction. To rerun it:
-
-```powershell
+npm test
+forge test -vv
 $env:WHITECHAIN_FORK_TEST='true'
-try { forge test --match-contract WhitechainPaymentTest -vv }
+try { forge test --match-contract RelayCompanyForkTest -vv }
 finally { Remove-Item Env:WHITECHAIN_FORK_TEST }
 ```
 
-Without that opt-in environment variable, the network-dependent fork test is explicitly skipped by `forge test`; the local storage tests still run.
+Backend tests cover the company mission, allocations, approvals and reservation release, independent vendor receipt rejection and task binding, ambiguous broadcast recovery, founder sign-in, webhook forgery, session isolation and x402 retries. Contract tests cover replayed payment IDs and requests, unbacked credit, unregistered/redirected vendors, per-call/day limits, fee math, unauthorized allocations and Finance signature replay.
+
+**The new contract passed a local fork test using actual Whitechain USDT**: a zero-WBT department signed the bound receive authorization, the contract paid the vendor net of fees, and company credit remained correctly accounted. Fork tests require explicit opt-in and never broadcast.
+
+Real transactions from the earlier payment milestone:
+
+- [Treasury → agent: 1 test USDT](https://explorer.testnet.whitechain.io/tx/0x0d1d24d4c98021cd5ee8f52f5a88254e6aa541af37a7b99b50ab42f5c6d22b53).
+- [Agent → merchant: 0.1 test USDT](https://explorer.testnet.whitechain.io/tx/0xd93c87461e442eaa13d27cb8471721d7a95036ba91243d688444240349ef305a).
+- [Successful x402 exact payment: 0.1 test USDT](https://explorer.testnet.whitechain.io/tx/0x69ac20e8501e2345ad7e08855694205d9156174e736d21db831a16cf40e61ddc).
+- [Verified storage test contract](https://explorer.testnet.whitechain.io/address/0xEA836Fd7E1179777039856c02b70A3328cD3C1f3/contracts), which is neither RelayCompany nor a USDT payment.
+
+These prove the earlier real-payment milestone. The new company deployment is [0xc003ca83…109b2](https://explorer.testnet.whitechain.io/tx/0xc003ca83d53cd411b65f0e1d6b8c104f4380e2fad32ff3af295c4060e0a109b2), with [verified source](https://explorer.testnet.whitechain.io/address/0xD36605397FaFefaAe2c3eBfA95af1c732A322B31/contracts). Live company `Paid` links will be added after the mission runs. See [architecture](docs/architecture.md) and [earlier lab notes](docs/payment-lab.md).
+
+## Why onchain
+
+Agent departments need bounded spending authority across independent services. A contract enforces vendor allowlists, price limits and replay protection. Vendors independently verify payment without trusting Relay's database, and the shared receipt trail makes the accountant export checkable.
+
+## Limits and roadmap
+
+This is a single-founder, single-process hackathon demo, not production custody or payments infrastructure. Department keys are custodial, fiat is simulated and real operations target testnet. Weekly budgets and approvals are enforced by code; the contract enforces credited allocations, funded wallet balances, allowlisted prices, and per-call/day limits. The owner configures policies and withdraws fees in their own terminal. Paid-but-undelivered work retries delivery; it does not automatically refund.
+
+Sales, Product, Design, Engineering and Operations are the five roadmap departments, not fake working agents. Gas-fee withdrawal exists, but **automatic YetiTrade swapping is not implemented**: collected USDT is not WBT. Inter-company sales, production onramps, treasury replenishment, refunds and account recovery are also outside this core release. Production licensing and KYC require separate market-specific review.
+
+Show every party in the demo: founder, three departments, three vendor earnings pages, relayer gas tank, approval and real company receipt. Never show keys, passwords, API secrets or data files.

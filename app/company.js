@@ -42,7 +42,7 @@ export async function createCompany({ env = process.env, directory = resolve(env
       vendors.push({ ...expected, address: info.address, url });
     }
     const simulatedAttester = mode === 'simulated' ? getWallet('attester', 'attester') : null;
-    const config = { departments, vendors, financeAddress: departments.find(d => d.id === 'finance').address, attesterAddress: simulatedAttester?.address };
+    const config = { departments, vendors, financeAddress: departments.find(d => d.id === 'finance').address, attesterAddress: simulatedAttester?.address, relayerAddress: mode === 'simulated' ? getWallet('relayer','relayer').address : undefined };
     chain = chainFactory ? await chainFactory(db, config) : mode === 'simulated' ? createSimulatedCompanyChain(db, config) : await createRealCompanyChain(env, config);
     await chain.checkConfiguration();
     const attester = simulatedAttester ?? chain.attester;
