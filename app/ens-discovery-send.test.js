@@ -33,6 +33,16 @@ test('pending and unknown discovery broadcasts never create a replacement',async
  assert.deepEqual(await readdir(f.dir),[id+'.json']);assert.equal(f.counts().signed,0);
 });
 
+test('transport reads retry and a receipt-wait timeout rechecks the saved hash without another signature',async t=>{
+ const f=await fixture(t);let reads=0;
+ const original=f.provider.getTransactionReceipt;
+ f.provider.getTransactionReceipt=async hash=>{if(!reads++)throw Object.assign(new Error('temporary timeout'),{code:'TIMEOUT'});return original(hash)};
+ f.provider.waitForTransaction=async()=>{throw Object.assign(new Error('wait timeout'),{code:'TIMEOUT'})};
+ const receipt=await sendDiscoveryTransaction(f.dir,f.provider,f.wallet.address,'register-pixelpress',f.signer,f.tx);
+ assert.equal(receipt.status,1);assert.deepEqual(f.counts(),{signed:1,broadcast:1});
+ await sendDiscoveryTransaction(f.dir,f.provider,f.wallet.address,'register-pixelpress',f.signer,f.tx);assert.equal(f.counts().signed,1);
+});
+
 test('reverted registration or changed record payload requires inspection',async t=>{
  const f=await fixture(t);await f.save('register-support',0);await f.save('binding-support',0);
  await assert.rejects(sendDiscoveryTransaction(f.dir,f.provider,f.wallet.address,'register-support',f.signer,f.tx),/reverted/);
