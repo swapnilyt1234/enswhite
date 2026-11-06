@@ -15,7 +15,8 @@ export function createCompanyApp(company, origin, { guest = false } = {}) {
     void company.processJobs().catch(() => {}); res.json(result);
   });
   sessionRoutes(app, company, origin, { login: !guest, guest });
-  app.get('/api/state', async (req, res) => res.json(await company.state()));
+  let stateRead;
+  app.get('/api/state', async (req, res) => {stateRead??=Promise.resolve().then(()=>company.state()).finally(()=>{stateRead=null});res.json(await stateRead)});
   app.get('/api/agent-runs',(req,res)=>res.json(company.agentStore.runs()));
   app.get('/api/agent-runs/:id',(req,res)=>res.json(company.agentHistory(req.params.id)));
   app.post('/api/agent-runs/:id/retry',(req,res)=>{const result=company.retryAgent(req.params.id);void company.processJobs().catch(()=>{});res.json(result)});

@@ -144,7 +144,9 @@ function renderBooks() {
 function renderVendors() {
   $('vendor-cards').innerHTML=state.vendors.map(vendor=>`<article class="team-card"><div class="agent-heading"><span class="agent-icon">${icons[vendor.id]}</span><span class="tiny-tag">INDEPENDENT VENDOR</span></div><h3>${vendor.name}</h3><div class="vendor-service">${vendor.service}</div><p class="description">Paid per task. Delivery after independently verified payment.</p><div class="vendor-price">${money(vendor.price)}<small>per task · 1% platform fee included</small></div><a class="text-link vendor-link" target="_blank" rel="noreferrer" href="${routePrefix}/vendors/${vendor.id}">Open vendor earnings ↗</a><code class="onchain">${vendor.address}<br>Node process · port ${vendor.port}</code></article>`).join('');
 }
-async function refresh() {
+let refreshPending;
+function refresh(){return refreshPending??=refreshState().finally(()=>{refreshPending=null})}
+async function refreshState() {
   state=await api('/state');$('login').hidden=true;
   for(const [key,value] of Object.entries(state.business||{})){const input=businessForm.elements.namedItem(key);if(input&&document.activeElement!==input)input.value=value}
   (state.activity||[]).forEach(row=>workEvents.set(row.id,row));renderDesk();connectActivity();
