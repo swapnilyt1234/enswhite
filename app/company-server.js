@@ -37,7 +37,7 @@ export function createCompanyApp(company, origin) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  const port = Number(process.env.PORT || 3003), origin = process.env.APP_ORIGIN || `http://localhost:${port}`;
+  const port = Number(process.env.PORT || 3003), origin = (process.env.APP_ORIGIN || `http://localhost:${port}`).trim();
   const company = await createCompany();
   const server = createCompanyApp(company, origin).listen(port, '127.0.0.1', () => console.log(`Relay agent company: ${origin}\n${company.chain.mode} · custom x402 relay-receive · three departments, three independent vendors`));
   const timer = setInterval(() => { void company.processJobs().catch(() => {}); }, 5000); timer.unref();

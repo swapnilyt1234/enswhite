@@ -15,6 +15,7 @@ export function baseApp(origin) {
 }
 
 export function sessionRoutes(app, service, origin, { login = false } = {}) {
+  origin = new URL(origin).origin;
   const cookieName = 'relay_company' + (new URL(origin).port ? '_' + new URL(origin).port : '');
   app.use(express.json({ limit: '16kb' }));
   const cookie = req => req.headers.cookie?.split(';').map(s => s.trim()).find(s => s.startsWith(cookieName + '='))?.slice(cookieName.length + 1);

@@ -16,7 +16,7 @@ try {
     $env:COMPANY_DATA_DIR=Join-Path $PSScriptRoot 'data/company/testnet';$env:VENDOR_DATA_DIR=Join-Path $PSScriptRoot 'data/vendors/testnet'
     $env:RELAY_COMPANY_ADDRESS=$deployment.address;$env:COMPANY_DEPLOYMENT_BLOCK=[string]$deployment.block
     $env:TREASURY_ADDRESS=$config.roles.treasury.address;$env:RELAYER_KEYSTORE=$config.roles.relayer.keystore;$env:ATTESTER_KEYSTORE=$config.roles.attester.keystore
-    $env:APP_ORIGIN=Read-Host 'Public HTTPS company app origin forwarded to port 3004 (no trailing slash)'
+    $env:APP_ORIGIN=(Read-Host 'Public HTTPS company app origin forwarded to port 3004 (no trailing slash)').Trim()
     $uri=[Uri]$env:APP_ORIGIN
     if($uri.Scheme -ne 'https' -or $uri.AbsolutePath -ne '/' -or $uri.Query -or $uri.Fragment -or $env:APP_ORIGIN.EndsWith('/')){throw 'Invalid HTTPS origin'}
     if(-not $env:RAZORPAY_KEY_ID){$env:RAZORPAY_KEY_ID=Read-Host 'Razorpay TEST key ID'}

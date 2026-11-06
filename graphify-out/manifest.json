@@ -66,9 +66,9 @@
     "semantic_hash": ""
   },
   "app/server.js": {
-    "mtime": 1793907067.1082814,
-    "seen": 1793907152.5979733,
-    "ast_hash": "b15c4cb21d8a4c5f27cd5ba13e4d27c7",
+    "mtime": 1793925776.897506,
+    "seen": 1793925847.5715137,
+    "ast_hash": "0af61fef35a3d62a3d2603f868a5eaa6",
     "semantic_hash": ""
   },
   "package.json": {
@@ -78,9 +78,9 @@
     "semantic_hash": ""
   },
   "start-testnet.ps1": {
-    "mtime": 1793904344.620203,
-    "seen": 1793904442.539396,
-    "ast_hash": "dcc7a83bd678ee31a19d7c5a26887976",
+    "mtime": 1793925776.89651,
+    "seen": 1793925847.572381,
+    "ast_hash": "de8b154bed2fc6615a9a0c90c4545fd8",
     "semantic_hash": ""
   },
   "README.md": {
@@ -132,9 +132,9 @@
     "semantic_hash": ""
   },
   "app/company-server.js": {
-    "mtime": 1793923647.5639942,
-    "seen": 1793924936.1165755,
-    "ast_hash": "3f6f444ab062342c20270229cbfe7a4a",
+    "mtime": 1793925776.8935099,
+    "seen": 1793925847.5705588,
+    "ast_hash": "025092e23cc1a39271f213e7367cdb28",
     "semantic_hash": ""
   },
   "app/company-setup.js": {
@@ -156,15 +156,15 @@
     "semantic_hash": ""
   },
   "app/company.test.js": {
-    "mtime": 1793923717.7213478,
-    "seen": 1793924936.1165876,
-    "ast_hash": "54a897621e73d2f18e14d2618bcbcc9c",
+    "mtime": 1793925776.8995073,
+    "seen": 1793925847.5710273,
+    "ast_hash": "fe3803e027a65bbf5ebd7b4cb19042b2",
     "semantic_hash": ""
   },
   "app/http.js": {
-    "mtime": 1793923647.5617611,
-    "seen": 1793924936.1165903,
-    "ast_hash": "3fa53944563a6ce154af21becd095445",
+    "mtime": 1793925776.8925123,
+    "seen": 1793925847.5710292,
+    "ast_hash": "51e57d1b32469e10ccb57d1533ff33c9",
     "semantic_hash": ""
   },
   "app/run-company.js": {
@@ -198,9 +198,9 @@
     "semantic_hash": ""
   },
   "start-company-testnet.ps1": {
-    "mtime": 1793925608.5909915,
-    "seen": 1793925641.6444454,
-    "ast_hash": "06ac8a8fac5a1ca384723474fd152bca",
+    "mtime": 1793925776.8945115,
+    "seen": 1793925847.572379,
+    "ast_hash": "c99746916b4449e927a9f41ee9c7135c",
     "semantic_hash": ""
   },
   ".github/workflows/check.yml": {

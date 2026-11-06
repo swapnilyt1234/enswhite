@@ -23,7 +23,7 @@ try {
     $env:CHAIN_MODE = 'testnet'
     $env:DATA_DIR = Join-Path $PSScriptRoot 'data\testnet'
     $env:PORT = '3001'
-    if (-not $env:APP_ORIGIN) { $env:APP_ORIGIN = (Read-Host 'Public HTTPS app origin for Razorpay webhooks (no trailing slash)') }
+    if (-not $env:APP_ORIGIN) { $env:APP_ORIGIN = (Read-Host 'Public HTTPS app origin for Razorpay webhooks (no trailing slash)').Trim() }
     $appUri = [Uri]$env:APP_ORIGIN
     if ($appUri.Scheme -ne 'https' -or $appUri.AbsolutePath -ne '/' -or $appUri.Query -or $appUri.Fragment -or $env:APP_ORIGIN.EndsWith('/')) {
         throw 'Use a public HTTPS origin such as https://your-demo.example, with no path or trailing slash'

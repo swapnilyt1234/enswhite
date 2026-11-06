@@ -7,6 +7,7 @@ import { mountX402 } from './x402.js';
 const publicDir = join(dirname(fileURLToPath(import.meta.url)), 'public');
 
 export function createApp(payments, origin) {
+  origin = origin.trim();
   const app = express();
   const sessionCookie = 'agent_session' + (new URL(origin).port ? '_' + new URL(origin).port : '');
   app.disable('x-powered-by');

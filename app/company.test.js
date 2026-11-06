@@ -110,7 +110,7 @@ test('company founder login and state-changing requests require the password and
   const { company }=await setup(t,{env:{FOUNDER_PASSWORD:'long-founder-password'}});
   const server=createServer();await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const origin=`http://127.0.0.1:${server.address().port}`;
-  server.on('request',createCompanyApp(company,origin));
+  server.on('request',createCompanyApp(company,'  '+origin+'  '));
   t.after(()=>new Promise(resolve=>server.close(resolve)));
   assert.equal((await fetch(origin+'/api/state')).status,401);
   let response=await fetch(origin+'/api/login',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({password:'wrong'})});
