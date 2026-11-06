@@ -1,4 +1,8 @@
 import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
+import {existsSync,readFileSync} from 'node:fs';
+import {Contract} from 'ethers';
+import {feedbackPayload,rankVendors,REPUTATION_REGISTRY,REPUTATION_ABI} from './reputation.js';
+import {identityContract,identityManifest} from './agent-identity.js';
 import { resolve } from 'node:path';
 import { keccak256, toUtf8Bytes, formatUnits, verifyTypedData } from 'ethers';
 import { openStore, createGateway, webhookSignature, digest, fail } from './payments.js';
@@ -41,12 +45,14 @@ export async function createCompany({ env = process.env, directory = resolve(env
   const old = db.prepare("SELECT value FROM settings WHERE key='company_config'").get();
   if (old && old.value !== fingerprint) { db.close(); throw new Error('Use a new COMPANY_DATA_DIR when changing chain, payment mode or company address'); }
   const getWallet = walletStore(db, key);
-  const departments = DEPARTMENTS.map(dept => ({ ...dept, address: getWallet(dept.id, 'department').address }));
+  const roles=env.COMPANY_ROLES?JSON.parse(env.COMPANY_ROLES):DEPARTMENTS.map(x=>x.id);
+  if(!Array.isArray(roles)||!roles.includes('finance')||roles.some(x=>!DEPARTMENTS.some(d=>d.id===x)))throw new Error('Invalid company roles');
+  const departments = DEPARTMENTS.filter(x=>roles.includes(x.id)).map(dept => ({ ...dept, address: getWallet(dept.id, 'department').address }));
   let chain;
   const directoryENS = ensDirectory ?? (env.ENS_ENABLED === 'true' ? createENSDirectory(env) : null);
   try {
     const vendors = [];
-    for (const expected of VENDORS) {
+    for (const expected of VENDORS.filter(x=>roles.includes(x.dept))) {
       const url = `http://127.0.0.1:${expected.port}`;
       const response = await vendorFetch(url + '/api/info', { signal: AbortSignal.timeout(5000) });
       if (!response.ok) throw new Error(`Start ${expected.name} before the company server`);
@@ -64,7 +70,10 @@ export async function createCompany({ env = process.env, directory = resolve(env
     const agentStore=createAgentStore(db);let runtime;
     const employment=directoryENS?createEmploymentQueue(db,{controller:env.ENS_NAMES_ADDRESS,company:directoryENS.companyName,parent:env.ENS_PARENT_NAME,departments,vendors}):null;
     const assertNotFiring=label=>{if(employment?.firing(label))throw fail('This employee is being removed. New work and payments are paused.',409)};
-    const ensWriter=directoryENS?createENSWriter(db,directoryENS,getWallet,event=>activity.record(event.label,event.key==='enswhite.status'?'ens_status':'budget_updated',event.key==='enswhite.status'?`My ENS status is now ${event.value}.`:`Finance updated my ENS weekly budget to ${formatUnits(event.value,6)} test USDT.`,{data:{hash:event.hash,network:'sepolia',value:event.value},key:`ens:${event.hash}`})):null;
+    const vendorIdentityFile=resolve('docs/deployments/vendor-identities.json');
+    const vendorIdentities=existsSync(vendorIdentityFile)?JSON.parse(readFileSync(vendorIdentityFile,'utf8')):[];
+    db.exec('CREATE TABLE IF NOT EXISTS company_reviews(id TEXT PRIMARY KEY,kind TEXT NOT NULL,mission TEXT NOT NULL,target TEXT NOT NULL,department TEXT NOT NULL,score INTEGER NOT NULL,comment TEXT NOT NULL,created_at TEXT NOT NULL)');
+    const ensWriter=directoryENS?createENSWriter(db,directoryENS,getWallet,event=>activity.record(event.label,event.key==='erc8004.feedback'?'review_confirmed':event.key==='enswhite.status'?'ens_status':'budget_updated',event.key==='erc8004.feedback'?'My ERC-8004 review is confirmed.':event.key==='enswhite.status'?`My ENS status is now ${event.value}.`:`Finance updated my ENS weekly budget to ${formatUnits(event.value,6)} test USDT.`,{data:{hash:event.hash,network:'sepolia',value:event.value},key:`ens:${event.hash}`})):null;
     db.prepare('INSERT OR IGNORE INTO settings VALUES(?,?)').run('company_config', fingerprint);
     let running;
     const jobs = () => db.prepare('SELECT id,kind,state,hash,error,created_at FROM company_jobs ORDER BY created_at DESC').all();
@@ -85,14 +94,51 @@ export async function createCompany({ env = process.env, directory = resolve(env
     }
     const service = {
       db, chain, departments, vendors, gateway, activity,agentStore,
+      async rankVendors(candidates){
+        if(!directoryENS)return candidates.map(v=>({id:v.id,name:v.name,price:v.price,reputation:null,simulated:true}));
+        const entries=candidates.map(v=>({...v,agentId:vendorIdentities.find(x=>x.label===v.id&&x.owner.toLowerCase()===v.address.toLowerCase())?.agentId}));
+        const ranked=await rankVendors(new Contract(REPUTATION_REGISTRY,REPUTATION_ABI,directoryENS.provider),identityContract(directoryENS.provider),entries,departments.map(x=>x.address));
+        return ranked.map(({id,name,price,agentId,reputation})=>({id,name,price,agentId,reputation}));
+      },
+      async review(kind,mission,target,department,score,comment){
+        if(!['vendor','employee'].includes(kind)||!Number.isInteger(score)||score<1||score>5||typeof comment!=='string'||!comment.trim()||comment.length>1000)throw fail('Invalid review');
+        if(kind==='vendor'){
+          const task=db.prepare("SELECT * FROM company_tasks WHERE mission_id=? AND vendor=? AND dept=? AND state='delivered'").get(mission,target,department);
+          if(!task||!(await receipts()).some(x=>x.requestId===task.id))throw fail('Only delivered work with a confirmed payment may be reviewed',409);
+        }else if(!departments.some(x=>x.id===target)||!db.prepare("SELECT id FROM agent_runs WHERE mission_id=? AND department=? AND state='completed'").get(mission,target))throw fail('Only completed employee assignments may be reviewed',409);
+        const id=keccak256(toUtf8Bytes(`review:${kind}:${mission}:${target}`)),old=db.prepare('SELECT * FROM company_reviews WHERE id=?').get(id);
+        if(old&&(old.score!==score||old.comment!==comment))throw fail('This work was already reviewed',409);
+        db.prepare('INSERT OR IGNORE INTO company_reviews VALUES(?,?,?,?,?,?,?,?)').run(id,kind,mission,target,department,score,comment,new Date().toISOString());return{id,state:directoryENS?'queued':'simulated'};
+      },
+      async processReviews(){
+        if(!ensWriter)return;
+        for(const row of db.prepare('SELECT * FROM company_reviews ORDER BY rowid').all()){
+          if(db.prepare('SELECT id FROM ens_writes WHERE id=?').get(row.id))continue;
+          const target=row.kind==='vendor'?vendorIdentities.find(x=>x.label===row.target):identityManifest(env.ENS_IDENTITY_FILE).find(x=>x.label===row.target);
+          if(!target)continue;
+          const registered=identityContract(directoryENS.provider);
+          if((await registered.ownerOf(target.agentId)).toLowerCase()!==target.owner.toLowerCase()||(await registered.getAgentWallet(target.agentId)).toLowerCase()!==target.owner.toLowerCase())throw new Error('Review target identity ownership mismatch');
+          if(row.kind==='employee'&&departments.find(x=>x.id===row.target)?.address.toLowerCase()!==target.owner.toLowerCase())throw new Error('Employee review target differs from the company wallet');
+          const client=row.kind==='vendor'?departments.find(x=>x.id===row.department).address:getWallet('founder-reviewer','reviewer').address;
+          let proof;
+          if(row.kind==='vendor'){
+            const task=db.prepare("SELECT * FROM company_tasks WHERE mission_id=? AND vendor=? AND dept=? AND state='delivered'").get(row.mission,row.target,row.department),event=task&&(await receipts()).find(x=>x.requestId===task.id),vendor=vendors.find(x=>x.id===row.target);
+            if(!event||event.vendor.toLowerCase()!==target.owner.toLowerCase()||vendor.address.toLowerCase()!==target.owner.toLowerCase()||event.dept.toLowerCase()!==client.toLowerCase())throw new Error('Review payment does not match vendor identity and buying department');
+            proof={fromAddress:client,toAddress:vendor.address,chainId:'1874',txHash:event.hash};
+          }
+          const payload=feedbackPayload({agentId:target.agentId,client,score:row.score,comment:row.comment,proof,context:{missionId:row.mission,company:directoryENS.companyName,kind:row.kind,reviewer:row.kind==='employee'?'Authenticated founder through dedicated service wallet':'Buying department'},createdAt:row.created_at});
+          ensWriter.queueFeedback(row.kind==='vendor'?row.department:'founder-reviewer',payload,row.id);
+        }
+      },
       async assertEmployee(label){const dept=departments.find(x=>x.id===label);if(!dept)throw fail('Unknown employee',403);assertNotFiring(label);if(directoryENS){const identity=await directoryENS.employee(label);if(identity.wallet.toLowerCase()!==dept.address.toLowerCase())throw fail('Employee identity differs from its signer',403);return identity}return{name:label,wallet:dept.address,simulated:true}},
       async agentLedger(missionId){
         const snapshot=await chain.snapshot(),all=await receipts(),payments=all.filter(x=>db.prepare('SELECT id FROM company_tasks WHERE id=? AND mission_id=?').get(x.requestId,missionId)),team=[];
         for(const dept of departments)team.push({id:dept.id,balance:String(await chain.balance(dept.address)),available:String(await remaining(dept)),weekly:directoryENS?(await directoryENS.employee(dept.id)).weekly:simulatedWeekly(dept),approval:dept.approval});
         return{companyBalance:snapshot.companyBalance,team,vendors:vendors.map(x=>({id:x.id,dept:x.dept,price:x.price})),payments,history:all.slice(-30),flags:payments.filter(x=>BigInt(x.amount)>BigInt(departments.find(d=>d.address.toLowerCase()===x.dept.toLowerCase())?.approval||0)).map(x=>({requestId:x.requestId,message:'Above-threshold expense: inspect its recorded founder approval.'}))};
       },
-      async allocationNeeds(missionId){const ledger=await service.agentLedger(missionId),needs={};for(const dept of ledger.team){const demand=vendors.filter(v=>v.dept===dept.id&&!db.prepare('SELECT id FROM company_tasks WHERE mission_id=? AND vendor=?').get(missionId,v.id)).reduce((n,v)=>n+BigInt(v.price),0n);needs[dept.id]=String(demand>BigInt(dept.available)?demand-BigInt(dept.available):0n)}return needs},
-      async agentContext(run){const row=db.prepare('SELECT title FROM company_missions WHERE id=?').get(run.mission_id),snapshot=db.prepare('SELECT profile FROM company_profiles WHERE mission_id=?').get(run.mission_id);return{mission:row?.title||'Recommend startup funds for the registered campaign services',business:snapshot?JSON.parse(snapshot.profile):businessProfile(),employee:await service.assertEmployee(run.department),purpose:run.purpose,source:run.source,memory:agentStore.memory(run.department),allocationNeeds:run.department==='finance'?await service.allocationNeeds(run.mission_id):null,work:db.prepare('SELECT id,dept,vendor,state,result FROM company_tasks WHERE mission_id=?').all(run.mission_id).map(x=>({...x,result:x.result?JSON.parse(x.result):null})),messages:agentStore.messages(run.mission_id).filter(x=>x.kind!=='model_output').slice(-10)}},
+      async allocationNeeds(missionId){const ledger=await service.agentLedger(missionId),needs={marketing:'0',support:'0',finance:'0'};for(const dept of ledger.team){const demand=vendors.filter(v=>v.dept===dept.id&&!db.prepare('SELECT id FROM company_tasks WHERE mission_id=? AND vendor=?').get(missionId,v.id)).reduce((n,v)=>n+BigInt(v.price),0n);needs[dept.id]=String(demand>BigInt(dept.available)?demand-BigInt(dept.available):0n)}return needs},
+      async agentContext(run){const row=db.prepare('SELECT title FROM company_missions WHERE id=?').get(run.mission_id),snapshot=db.prepare('SELECT profile FROM company_profiles WHERE mission_id=?').get(run.mission_id);return{mission:row?.title||'Recommend startup funds for the registered campaign services',business:snapshot?JSON.parse(snapshot.profile):businessProfile(),hiredDepartments:departments.map(x=>x.id),employee:await service.assertEmployee(run.department),purpose:run.purpose,source:run.source,memory:agentStore.memory(run.department),allocationNeeds:run.department==='finance'?await service.allocationNeeds(run.mission_id):null,work:db.prepare('SELECT id,dept,vendor,state,result FROM company_tasks WHERE mission_id=?').all(run.mission_id).map(x=>({...x,result:x.result?JSON.parse(x.result):null})),messages:agentStore.messages(run.mission_id).filter(x=>x.kind!=='model_output').slice(-10)}},
+      answerFounder(id,answer){if(typeof answer!=='string'||!answer.trim()||answer.length>1500)throw fail('Answer must contain 1–1500 characters');const row=db.prepare('SELECT * FROM founder_questions WHERE id=?').get(id);if(!row)throw fail('Question not found',404);if(row.answer&&row.answer!==answer)throw fail('This question was already answered',409);db.prepare('UPDATE founder_questions SET answer=? WHERE id=?').run(answer,id);activity.record('founder','founder_answer','The founder answered an employee question.',{data:{questionId:id}});return{id}},
       agentHistory(id){const run=agentStore.runs().find(x=>x.id===id);if(!run)throw fail('Employee run not found',404);return{run,actions:agentStore.actions(id),messages:agentStore.messages(run.mission_id).filter(x=>x.kind!=='model_output')}},
       retryAgent:id=>runtime.retry(id),
       session(token, loginPassword) {
@@ -119,13 +165,13 @@ export async function createCompany({ env = process.env, directory = resolve(env
         return { brand: 'EnsWhite', ens: { enabled: !!directoryENS, organization, companyName:directoryENS?.companyName, branding, writes:ensWriter?.jobs()??[] }, mode, paymentMode: gateway.mode, scheme: COMPANY_SCHEME, company: chain.address, network: NETWORK, token: TOKEN,
           ...snapshot, team, vendors: vendors.map(v => ({ ...v, earningsUrl: `/api/vendors/${v.id}/earnings` })),
           tasks: db.prepare('SELECT * FROM company_tasks ORDER BY created_at DESC').all().map(row => ({ ...row, result: row.result ? JSON.parse(row.result) : null })),
-          business:businessProfile(),
+          reviews:ensWriter?db.prepare('SELECT r.*,w.state,w.hash,w.error FROM company_reviews r LEFT JOIN ens_writes w ON w.id=r.id ORDER BY r.rowid DESC').all():db.prepare('SELECT *,\'simulated\' AS state FROM company_reviews').all(),business:businessProfile(),
           missions: db.prepare('SELECT m.*, CASE WHEN k.mission_id IS NULL THEN 0 ELSE 1 END kit_ready FROM company_missions m LEFT JOIN company_kits k ON k.mission_id=m.id ORDER BY m.created_at DESC').all(), ledger, jobs: jobs(),
           activity:db.prepare('SELECT * FROM company_activity ORDER BY id DESC LIMIT 200').all().reverse().map(row=>({...row,data:JSON.parse(row.data)})),
           employment:{ready:employment?.ready()||false,jobs:employment?.jobs()||[]},
           aiMode:env.AGENT_MODE==='llm'?(!env.OPENAI_API_KEY||!env.OPENAI_MODEL?'configuration required':agentStore.runs().some(x=>x.mission_id===latest?.id&&x.state==='failed')?'paused':'configured'):'offline',
           budgetRequests:db.prepare('SELECT id,mission_id,dept,vendor,state,amount,target,reason FROM company_budget_requests').all(),
-          agentRuns:agentStore.runs(),agentMessages:db.prepare("SELECT id,run_id,mission_id,sender,recipient,kind,content,created_at FROM agent_messages WHERE kind!='model_output' ORDER BY id DESC LIMIT 100").all().reverse().map(x=>({...x,content:JSON.parse(x.content)})),
+          founderQuestions:db.prepare('SELECT id,run_id,question,answer FROM founder_questions ORDER BY created_at').all(),agentRuns:agentStore.runs(),agentMessages:db.prepare("SELECT id,run_id,mission_id,sender,recipient,kind,content,created_at FROM agent_messages WHERE kind!='model_output' ORDER BY id DESC LIMIT 100").all().reverse().map(x=>({...x,content:JSON.parse(x.content)})),
           allocationProposal:db.prepare("SELECT * FROM finance_proposals WHERE state='draft' ORDER BY created_at DESC LIMIT 1").get()||null,
           approvals: db.prepare('SELECT * FROM company_approvals ORDER BY created_at DESC').all(),
           topup: { inr: 500, usdt: '5', note: 'Fixed demo allocation. Fiat is simulated, not converted.',...funding(snapshot) },
@@ -206,12 +252,13 @@ export async function createCompany({ env = process.env, directory = resolve(env
         if(!allocations||Object.keys(allocations).sort().join(',')!=='finance,marketing,support'||Object.values(allocations).some(x=>typeof x!=='string'||!/^\d{1,8}$/.test(x))||typeof rationale!=='string'||!rationale.trim()||rationale.length>1000)throw fail('Invalid Finance proposal');
         const pending=db.prepare("SELECT data FROM company_jobs WHERE kind='allocation' AND state IN ('queued','submitted')").all().reduce((n,x)=>n+BigInt(JSON.parse(x.data).amount),0n);
         if(Object.values(allocations).reduce((n,x)=>n+BigInt(x),0n)>BigInt((await chain.snapshot()).companyBalance)-pending)throw fail('Proposal exceeds available company credit');
+        for(const [label,units]of Object.entries(allocations))if(!departments.some(x=>x.id===label)&&BigInt(units)!==0n)throw fail('Cannot fund an unhired department');
         for(const dept of departments){const identity=directoryENS?await directoryENS.employee(dept.id):null,limit=BigInt(identity?.weekly??simulatedWeekly(dept));const allocated=db.prepare("SELECT data FROM company_jobs WHERE kind='allocation' AND state!='failed'").all().map(x=>JSON.parse(x.data)).filter(x=>x.week===week()&&x.dept===dept.address).reduce((n,x)=>n+BigInt(x.amount),0n);if(BigInt(allocations[dept.id])+allocated>limit||BigInt(allocations[dept.id])>50_000_000n)throw fail('Proposal exceeds a department weekly cap');}
         const id=keccak256(toUtf8Bytes(JSON.stringify({allocations,missionId,week:week()})));
         db.prepare("INSERT OR IGNORE INTO finance_proposals VALUES(?,?,?,?,?,'draft',?)").run(id,missionId,JSON.stringify(allocations),rationale,source,Date.now());
         activity.record('finance','allocation_proposed',rationale,{mission:missionId,data:{proposalId:id,allocations,source},key:'proposal:'+id});return{id,allocations,rationale,requiresFounderApproval:true};
       },
-      async requestFinanceProposal(){if(db.prepare("SELECT COUNT(*) n FROM agent_runs WHERE purpose='allocation'").get().n>=20)throw fail('Finance proposal run limit reached',429);const snapshot=await chain.snapshot(),nonce=await chain.allocationNonce(),id='allocation_'+keccak256(toUtf8Bytes(`${week()}:${snapshot.companyBalance}:${nonce}`)).slice(2,34);agentStore.ensure(id,'finance',env.AGENT_MODE==='llm'?'llm':'offline','allocation');return{id}},
+      async requestFinanceProposal(){if(db.prepare("SELECT COUNT(*) n FROM agent_runs WHERE purpose='allocation'").get().n>=20)throw fail('Finance proposal run limit reached',429);const snapshot=await chain.snapshot(),nonce=await chain.allocationNonce(),id='allocation_'+keccak256(toUtf8Bytes(`${week()}:${snapshot.companyBalance}:${nonce}`)).slice(2,34);agentStore.ensure(id,'finance',env.AGENT_MODE==='llm'?'llm':'offline','allocation',env.AGENT_MODE==='llm'?2:1);return{id}},
       async allocate(proposalId) {
         await service.assertEmployee('finance');
         if(!proposalId){if(env.AGENT_MODE==='llm')throw fail('Request and review a Finance proposal before approval');const missionId='allocation_'+week(),needs=await service.allocationNeeds(missionId);proposalId=(await service.proposeAllocation(needs,'Offline task-cost proposal for the registered campaign services, after existing department funds.',missionId)).id;}
@@ -224,14 +271,14 @@ export async function createCompany({ env = process.env, directory = resolve(env
         if (typeof title !== 'string' || title.trim().length < 5 || title.length > 600 || !/^[a-zA-Z0-9_-]{8,80}$/.test(requestKey ?? '')) throw fail('Enter a mission (5–600 characters) and an idempotency key');
         const old = db.prepare('SELECT * FROM company_missions WHERE request_key=?').get(requestKey);
         if (old && old.title !== title.trim()) throw fail('Idempotency key belongs to a different mission');
-        if (!old && db.prepare('SELECT COUNT(*) n FROM company_missions').get().n >= (env.GUEST_MODE==='true'?5:30)) throw fail('Demo mission limit reached', 429);
+        if (!old && db.prepare('SELECT COUNT(*) n FROM company_missions').get().n >= (env.GUEST_MODE==='true'||env.VISITOR_COMPANY==='true'?5:30)) throw fail('Demo mission limit reached', 429);
         const id = old?.id ?? randomUUID();
         if (!old) db.prepare('INSERT INTO company_missions VALUES(?,?,?,?,?)').run(id, requestKey, title.trim(), 'planning', now());
         activity.record('company','mission_received',`I received the mission: ${title.trim()}`,{mission:id,key:`mission:${id}`});
         if(old&&db.prepare('SELECT plan FROM company_plans WHERE mission_id=?').get(id))return{id};
         db.prepare('INSERT OR IGNORE INTO company_profiles(mission_id,profile,created_at) VALUES(?,?,?)').run(id,JSON.stringify(businessProfile()),Date.now());
         const source=env.AGENT_MODE==='llm'?'llm':'offline';
-        for(const dept of departments)agentStore.ensure(id,dept.id,source);
+        for(const dept of departments)agentStore.ensure(id,dept.id,source,'mission',source==='llm'?2:1);
         db.prepare('UPDATE company_missions SET source=? WHERE id=?').run(source==='llm'?'OpenAI tool runtime':'offline tool workflow',id);
         return { id };
       },
@@ -243,7 +290,7 @@ export async function createCompany({ env = process.env, directory = resolve(env
         try{ensPolicy=directoryENS?await directoryENS.authorize(dept.id, `${vendor.id}.vendors.${env.ENS_PARENT_NAME}`, dept.address, vendor.address, vendor.url+'/work', vendor.price):null}
         catch(error){activity.record(dept.id,'refused',/fired or expired/.test(error.message)?"I cannot authorize a purchase: my ENS employment is fired or expired.":/disagrees/.test(error.message)?"I refuse this vendor: its wallet or endpoint does not match ENS.":'I cannot verify the live ENS policy, so I will not sign a payment.',{mission:missionId,data:{vendor:vendor.id}});throw error}
         if(ensPolicy)activity.record(dept.id,'vendor_resolved',`I resolved ${ensPolicy.vendorName} through ENS. Its wallet and service endpoint match.`,{mission:missionId,data:{vendor:vendor.id,payee:ensPolicy.vendorWallet,employee:ensPolicy.name,expiry:ensPolicy.expiry},key:`resolved:${id}`});
-        const body = { requestId: id, dept: dept.address, task };
+        const body = { requestId: id, dept: dept.address, task, company:chain.address };
         const response = await vendorFetch(vendor.url + '/work', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(5000) });
         if (response.status !== 402) throw fail('Vendor did not return a payment challenge', 502);
         const required = decodePayment(response.headers.get('payment-required'));
@@ -409,10 +456,10 @@ export async function createCompany({ env = process.env, directory = resolve(env
           for (const task of db.prepare("SELECT t.*,j.hash FROM company_tasks t JOIN company_jobs j ON j.id=t.id WHERE t.state='confirmed'").all()) {
             try {
               const vendor = vendors.find(v => v.id === task.vendor), dept = departments.find(d => d.id === task.dept);
-              const response = await vendorFetch(vendor.url + '/work', { method: 'POST', signal: AbortSignal.timeout(12_000), headers: { 'Content-Type': 'application/json', 'PAYMENT-RESPONSE': encodePayment({ success: true, transaction: task.hash, network: NETWORK }) }, body: JSON.stringify({ requestId: task.id, dept: dept.address, task: task.task }) });
+              const response = await vendorFetch(vendor.url + '/work', { method: 'POST', signal: AbortSignal.timeout(12_000), headers: { 'Content-Type': 'application/json', 'PAYMENT-RESPONSE': encodePayment({ success: true, transaction: task.hash, network: NETWORK }) }, body: JSON.stringify({ requestId: task.id, dept: dept.address, task: task.task, company:chain.address }) });
               if (!response.ok) throw new Error('Vendor not ready');
               const result = await response.json();
-              if (result.requestId !== task.id || !['svg','text'].includes(result.type) || typeof result.content !== 'string' || result.content.length > 30_000) throw new Error('Invalid delivery');
+              if (result.requestId !== task.id || !['svg','text','html'].includes(result.type) || typeof result.content !== 'string' || result.content.length > 30_000) throw new Error('Invalid delivery');
               db.prepare("UPDATE company_tasks SET state='delivered',result=?,error=NULL WHERE id=?").run(JSON.stringify(result), task.id);
               activity.record(task.dept,'delivery_verified',`${vendor.name} verified its payment and delivered the work.`,{mission:task.mission_id,data:{requestId:task.id,vendor:vendor.id,hash:task.hash,network:mode==='testnet'?'whitechain':'simulated'},key:`delivered:${task.id}`});
             } catch { db.prepare('UPDATE company_tasks SET error=? WHERE id=?').run('Payment confirmed; vendor delivery pending. Retrying never charges again.', task.id); }
@@ -431,7 +478,7 @@ export async function createCompany({ env = process.env, directory = resolve(env
             const ledger=await receipts(),paid=tasks.map(t=>({task:t,event:ledger.find(e=>e.requestId===t.id)}));if(paid.some(x=>!x.event))continue;
             const gross=paid.reduce((n,x)=>n+BigInt(x.event.amount),0n),fees=paid.reduce((n,x)=>n+BigInt(x.event.fee),0n);
             const result=id=>{const t=tasks.find(t=>t.vendor===id);return t?JSON.parse(t.result).content:null};
-            const kit={missionId:mission.id,business:businessProfile().name,title:mission.title,owner:'marketing',mode,copy:result('copydesk'),banner:result('pixelpress'),faq:result('lingualink'),memo:`I reconciled ${paid.length} paid purchases: ${formatUnits(gross,6)} test USDT gross, ${formatUnits(gross-fees,6)} to vendors and ${formatUnits(fees,6)} in company fees. Every included delivery has a matching payment receipt.`,receipts:paid.map(({task,event})=>({vendor:vendors.find(v=>v.id===task.vendor).name,gross:formatUnits(event.amount,6),hash:event.hash,url:mode==='testnet'?`${EXPLORER}/tx/${event.hash}`:null}))};
+            const kit={missionId:mission.id,business:businessProfile().name,title:mission.title,owner:departments.find(x=>x.id!=='finance')?.id||'finance',mode,copy:result('copydesk'),banner:JSON.parse(tasks.find(x=>x.vendor==='pixelpress')?.result||'null')?.type==='html'?null:result('pixelpress'),landing:JSON.parse(tasks.find(x=>x.vendor==='pixelpress')?.result||'null')?.type==='html'?result('pixelpress'):null,faq:result('lingualink'),memo:`I reconciled ${paid.length} paid purchases: ${formatUnits(gross,6)} test USDT gross, ${formatUnits(gross-fees,6)} to vendors and ${formatUnits(fees,6)} in company fees. Every included delivery has a matching payment receipt.`,receipts:paid.map(({task,event})=>({vendor:vendors.find(v=>v.id===task.vendor).name,gross:formatUnits(event.amount,6),hash:event.hash,url:mode==='testnet'?`${EXPLORER}/tx/${event.hash}`:null}))};
             kit.brief=agentStore.artifactFor(mission.id,'marketing','campaign_brief');kit.policyFAQ=agentStore.artifactFor(mission.id,'support','faq');kit.financialReport=agentStore.artifactFor(mission.id,'finance','financial_report');kit.executionSource=runs.length?(runs.every(x=>x.source==='llm')?'LLM tool runtime':'Offline tool workflow'):'Legacy workflow';
             db.prepare('INSERT OR IGNORE INTO company_kits VALUES(?,?)').run(mission.id,JSON.stringify(kit));activity.record('finance','output_reviewed',kit.memo,{mission:mission.id,key:`memo:${mission.id}`});activity.record('marketing','kit_delivered','I checked that every commissioned piece was delivered and assembled your Campaign Kit.',{mission:mission.id,data:{kit:mission.id},key:`kit:${mission.id}`});
           }
@@ -443,6 +490,7 @@ export async function createCompany({ env = process.env, directory = resolve(env
               const status=tasks.some(t=>t.state==='approval')?'awaiting approval':budgetWaiting||handoffs||tasks.some(t=>['queued','submitted','confirmed','funding'].includes(t.state))?'working':tasks[0]?.state==='delivered'?'delivered':tasks[0]?.state==='failed'?'blocked':'active';
               await ensWriter.status(dept.id,status).catch(()=>{});
             }
+            await service.processReviews();
             await ensWriter.process();
           }
         })().finally(() => { running = null; });
@@ -466,8 +514,9 @@ export async function createCompany({ env = process.env, directory = resolve(env
       async close() { if (running) await running;await runtime.close(); activity.close(); directoryENS?.close(); chain.close(); db.close(); },
     };
     const agentTools=createAgentTools({db,store:agentStore,service,activity});
-    runtime=createAgentRuntime({db,store:agentStore,activity,tools:agentTools,context:run=>service.agentContext(run),offline:offlineAction,env,modelFetch,observe:async run=>{
+    runtime=createAgentRuntime({db,store:agentStore,activity,tools:agentTools,context:run=>service.agentContext(run),offline:offlineAction,env,modelFetch,observe:async run=>{const questions=db.prepare('SELECT id,answer FROM founder_questions WHERE run_id=?').all(run.id);
       const actions=agentStore.actions(run.id),last=actions.at(-1);
+      if(run.version===2)return JSON.stringify({questions,handoffs:db.prepare("SELECT id FROM agent_messages WHERE mission_id=? AND recipient=? AND kind='employee_handoff'").all(run.mission_id,run.department),work:db.prepare('SELECT vendor,state FROM company_tasks WHERE mission_id=?').all(run.mission_id),balance:last?.name==='propose_allocation'?String((await chain.snapshot()).companyBalance):null});
       if(last?.name==='propose_allocation'&&last.result?.waiting)return String((await chain.snapshot()).companyBalance);
       const work=db.prepare('SELECT vendor,state FROM company_tasks WHERE mission_id=?').all(run.mission_id),terminal=x=>['delivered','failed','rejected'].includes(x?.state)?x.state:'pending';
       if(run.department==='finance')return String(work.length===3&&work.every(x=>terminal(x)!=='pending'));

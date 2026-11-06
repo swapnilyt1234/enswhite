@@ -2,17 +2,19 @@
 
 **Start a business, hire AI departments and let them buy the work—within a budget, with a receipt.**
 
-[Guest company](https://zoning-playhouse-banister.ngrok-free.dev/) · [Live Proof](https://zoning-playhouse-banister.ngrok-free.dev/proof/) · [Founder workspace](https://zoning-playhouse-banister.ngrok-free.dev/owner/) · [Architecture diagrams](docs/project-flow.md)
+[Launch a company](https://zoning-playhouse-banister.ngrok-free.dev/launch/) · [Guest company](https://zoning-playhouse-banister.ngrok-free.dev/) · [Live Proof](https://zoning-playhouse-banister.ngrok-free.dev/proof/) · [Founder workspace](https://zoning-playhouse-banister.ngrok-free.dev/owner/) · [Architecture diagrams](docs/project-flow.md)
 
-Public routes require `start-judge.ps1` running and the tunnel forwarded to **3006**. Private company/vendor services remain on **3004 / 4001–4003**. See [activation](docs/ACTIVATION.md). The temporary tunnel depends on the operator's machine staying online. Demo recording remains deferred.
+Public routes require `start-judge.ps1` running and the tunnel forwarded to **3006**. Private company/vendor services remain on **3004 / 4001–4003**. See [activation](docs/ACTIVATION.md) and the [six-step journey/operator guide](docs/FOUNDER-JOURNEY.md). The temporary tunnel depends on the operator's machine staying online. Demo recording remains deferred.
 
 A founder describes their business and gives a mission. Marketing, Support and Finance run persisted, role-specific tool loops with memory and structured handoffs. Marketing commissions copy, passes the delivered text and brand to design, and owns the Campaign Kit. Support uses founder-supplied product/shipping/return facts. Finance proposes task-based allocations for approval and reconciles actual receipts. Models never receive keys or unrestricted transaction tools.
+
+The front follows Launch → Hire → Fund → Work → Deliver → Review. New visitor onboarding provisions a separate ENS namespace, employee wallets/identities and Whitechain contract under daily operator budgets. Vendor reputation is queried with a non-empty company-department client list. Fresh provisioning and reputation broadcasts require the local activation steps; implementation and isolated tests alone are not live-chain proof.
 
 Hire, Fire and Renew now queue through the authenticated app, with a separate private employee manager sponsoring ENS service gas. The founder needs no browser wallet for these actions. See [employee-manager setup and trust boundary](docs/EMPLOYEE-MANAGEMENT.md); the operator must start the manager and reload the company server to activate it.
 
 [Employee runtime, sample tool trace and local commands](docs/EMPLOYEE-RUNTIME.md) · [Completed offline Kit](https://zoning-playhouse-banister.ngrok-free.dev/sample-kit.html) · [Whitechain feedback](WHITECHAIN_FEEDBACK.md)
 
-Private model mode fails explicitly on an API error; it does not disguise an offline substitute as AI work. Guest sessions execute the same bounded tool interface offline and label that source. Eight tool calls and twelve API attempts per assignment bound execution. Real-model missions completed with simulated funds and real Whitechain testnet payments on November 7, 2026. The [live-testnet Campaign Kit evidence](docs/TESTNET-RUNTIME-MISSION.md) records all three employee submissions, vendor receipts, recovery behavior and content-review limits.
+Private model mode fails explicitly on an API error; it does not disguise an offline substitute as AI work. Guest sessions execute the same bounded tool interface offline and label that source. New model assignments allow six tool decisions and twelve API attempts; saved legacy and offline runs retain their original eight-tool protocol. A GPT-6 Luna mission passed with simulated settlement using five/two/two decisions for Marketing/Support/Finance. Real-model missions completed with simulated funds and real Whitechain testnet payments on November 7, 2026. The [live-testnet Campaign Kit evidence](docs/TESTNET-RUNTIME-MISSION.md) records all three employee submissions, vendor receipts, recovery behavior and content-review limits.
 
 **Sandbox fiat; real testnet settlement.** ₹500 in Razorpay test mode credits 5 test USDT from a prefunded company contract. This is a fixed demo allocation, not fiat conversion. Guest companies use isolated simulations and offline content; authenticated founders can configure OpenAI planning/content locally. Test USDT has no real monetary value.
 

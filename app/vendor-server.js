@@ -1,7 +1,7 @@
 import express from 'express';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { existsSync } from 'node:fs';
+import { existsSync,readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { openStore, digest, fail } from './payments.js';
 import { walletStore, VENDORS } from './company-store.js';
@@ -31,13 +31,20 @@ export async function createVendor(vendorId, env = process.env) {
     try { return chainDb.prepare("SELECT data,hash,block FROM company_events WHERE kind='payment'").all().map(row => ({ ...JSON.parse(row.data), hash: row.hash, block: row.block })).filter(row => row.vendor.toLowerCase() === wallet.address.toLowerCase()); }
     catch { return []; } finally { chainDb.close(); }
   }
+  function allowedCompany(address){
+    if(!address||address.toLowerCase()===company.toLowerCase())return company;
+    if(mode!=='testnet'||!/^0x[a-f0-9]{40}$/i.test(address))throw fail('Unapproved company',403);
+    const file=resolve('data/launch/approved-companies.json');
+    const approved=existsSync(file)?JSON.parse(readFileSync(file,'utf8')):[];
+    if(!approved.some(x=>x.address.toLowerCase()===address.toLowerCase()))throw fail('Unapproved company',403);return address;
+  }
   async function paid(body, txHash) {
     if (!/^0x[a-f0-9]{64}$/i.test(txHash ?? '')) return false;
     if (!base) return (await events()).some(row => row.requestId === body.requestId && row.dept.toLowerCase() === body.dept.toLowerCase() && row.hash === txHash && row.amount === info.price);
     const receipt = await base.provider.getTransactionReceipt(txHash);
     if (receipt?.status !== 1) return false;
     return receipt.logs.some(log => {
-      if (log.address.toLowerCase() !== company.toLowerCase()) return false;
+      if (log.address.toLowerCase() !== allowedCompany(body.company).toLowerCase()) return false;
       try { const event = parseCompanyLog(log); return event?.name === 'Paid' && event.args.requestId === body.requestId && event.args.vendor.toLowerCase() === wallet.address.toLowerCase() && event.args.dept.toLowerCase() === body.dept.toLowerCase() && event.args.amount === BigInt(info.price); } catch { return false; }
     });
   }
@@ -53,13 +60,14 @@ export async function createVendor(vendorId, env = process.env) {
   app.post('/work', async (req, res, next) => {
     const body = req.body;
     if (!body || !/^0x[a-f0-9]{64}$/i.test(body.requestId ?? '') || !/^0x[a-f0-9]{40}$/i.test(body.dept ?? '') || typeof body.task !== 'string' || !body.task.trim() || body.task.length > 8000) throw fail('Invalid task');
-    const hash = digest(JSON.stringify({ task: body.task, dept: body.dept }));
+    const payTo=allowedCompany(body.company);
+    const hash = digest(JSON.stringify({ task: body.task, dept: body.dept,...(payTo.toLowerCase()!==company.toLowerCase()?{company:payTo.toLowerCase()}:{}) }));
     const order = db.prepare('SELECT * FROM vendor_orders WHERE id=?').get(body.requestId);
     if (order && order.body_hash !== hash) throw fail('Request ID is bound to a different task');
     const count = db.prepare('SELECT COUNT(*) n FROM vendor_orders').get().n;
     if (!order && count >= 1000) throw fail('Vendor demo order limit reached', 429);
     db.prepare('INSERT OR IGNORE INTO vendor_orders VALUES(?,?,NULL)').run(body.requestId, hash);
-    const requirement = { x402Version: 2, resource: { url: `http://localhost:${info.port}/work`, description: info.service, mimeType: 'application/json' }, accepts: [{ scheme: 'enswhite-receive', network: NETWORK, amount: info.price, asset: TOKEN, payTo: company, maxTimeoutSeconds: 300, extra: { name: 'Tether USD', version: '1', vendor: wallet.address, requestId: body.requestId } }] };
+    const requirement = { x402Version: 2, resource: { url: `http://localhost:${info.port}/work`, description: info.service, mimeType: 'application/json' }, accepts: [{ scheme: 'enswhite-receive', network: NETWORK, amount: info.price, asset: TOKEN, payTo, maxTimeoutSeconds: 300, extra: { name: 'Tether USD', version: '1', vendor: wallet.address, requestId: body.requestId } }] };
     let payment; try { payment = req.get('payment-response') ? decodePayment(req.get('payment-response')) : null; } catch {}
     if (!payment?.success || !(await paid(body, payment.transaction))) return res.status(402).set('PAYMENT-REQUIRED', encodePayment(requirement)).json({ error: 'Confirmed vendor payment required' });
     next();

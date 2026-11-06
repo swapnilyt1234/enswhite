@@ -1,10 +1,13 @@
 import { Contract, dnsEncode, keccak256 } from 'ethers';
 import { randomUUID } from 'node:crypto';
+import {feedbackTransaction,REPUTATION_REGISTRY,REPUTATION_ABI} from './reputation.js';
+import {IDENTITY_REGISTRY,identityContract} from './agent-identity.js';
 import { populateENSTransaction } from './ens.js';
 
 export function createENSWriter(db,directory,getWallet,onConfirmed=()=>{}) {
   const provider=directory.provider;
   db.exec('CREATE TABLE IF NOT EXISTS ens_writes (id TEXT PRIMARY KEY,label TEXT NOT NULL,key TEXT NOT NULL,value TEXT NOT NULL,state TEXT NOT NULL,raw TEXT,hash TEXT,error TEXT,created_at INTEGER NOT NULL)');
+  if(!db.prepare('PRAGMA table_info(ens_writes)').all().some(x=>x.name==='signed_at'))db.exec('ALTER TABLE ens_writes ADD COLUMN signed_at INTEGER');
   function queue(label,key,value,id=randomUUID()) {
     if(!['marketing','support','finance'].includes(label)||!['enswhite.status','enswhite.budget.weekly'].includes(key))throw new Error('ENS write scope rejected');
     if(key==='enswhite.status'&&!['active','working','awaiting approval','delivered','blocked'].includes(value))throw new Error('Invalid agent status');
@@ -17,6 +20,14 @@ export function createENSWriter(db,directory,getWallet,onConfirmed=()=>{}) {
   }
   return {
     queue,
+    queueFeedback(label,payload,id){
+      if(!['marketing','support','finance','founder-reviewer'].includes(label))throw new Error('Review signer rejected');
+      feedbackTransaction(payload);
+      if(payload.file.clientAddress.toLowerCase()!==`eip155:11155111:${getWallet(label,label==='founder-reviewer'?'reviewer':'department').address}`.toLowerCase())throw new Error('Review client differs from signer');
+      const old=db.prepare('SELECT value FROM ens_writes WHERE id=?').get(id),value=JSON.stringify(payload);
+      if(old&&old.value!==value)throw new Error('Review already exists with different content');
+      db.prepare("INSERT OR IGNORE INTO ens_writes(id,label,key,value,state,created_at) VALUES(?,?,? ,?,'queued',?)").run(id,label,'erc8004.feedback',value,Math.floor(Date.now()/1000));return{id};
+    },
     jobs:()=>db.prepare('SELECT id,label,key,value,state,hash,error FROM ens_writes ORDER BY rowid DESC LIMIT 30').all(),
     async status(label,value) {
       const last=db.prepare('SELECT value,state FROM ens_writes WHERE label=? AND key=? ORDER BY rowid DESC LIMIT 1').get(label,'enswhite.status');
@@ -29,18 +40,28 @@ export function createENSWriter(db,directory,getWallet,onConfirmed=()=>{}) {
         try {
           if((await provider.getNetwork()).chainId!==11155111n)throw new Error('Use Sepolia');
           if(!row.raw) {
-            const identity=await directory.employee(row.label),actor=row.key==='enswhite.status'?row.label:'finance';
-            const signer=getWallet(actor,'department').connect(provider),authority=await directory.employee(actor);
+            const feedback=row.key==='erc8004.feedback',actor=feedback||row.key==='enswhite.status'?row.label:'finance';
+            const identity=feedback?null:await directory.employee(row.label);
+            const signer=getWallet(actor,actor==='founder-reviewer'?'reviewer':'department').connect(provider),authority=actor==='founder-reviewer'?{wallet:signer.address}:await directory.employee(actor);
             if(authority.wallet!==signer.address)throw new Error('ENS signer differs from employee identity');
-            const count=db.prepare('SELECT COUNT(*) n FROM ens_writes WHERE raw IS NOT NULL AND created_at>=?').get(Math.floor(Date.now()/86400000)*86400).n;
+            const count=db.prepare('SELECT COUNT(*) n FROM ens_writes WHERE raw IS NOT NULL AND COALESCE(signed_at,created_at)>=?').get(Math.floor(Date.now()/86400000)*86400).n;
             if(count>=48)throw new Error('ENS daily write cap reached');
-            const resolver=new Contract(identity.resolver,['function setText(bytes,string,string)'],provider);
-            const tx=await populateENSTransaction(signer,{to:resolver.target,data:resolver.interface.encodeFunctionData('setText',[dnsEncode(identity.name),row.key,row.value]),chainId:11155111});
+            let request;
+            if(feedback){
+              const payload=JSON.parse(row.value),registry=new Contract(REPUTATION_REGISTRY,REPUTATION_ABI,provider);
+              if((await registry.getIdentityRegistry()).toLowerCase()!==IDENTITY_REGISTRY.toLowerCase())throw new Error('Wrong reputation identity registry');
+              if((await identityContract(provider).ownerOf(payload.agentId)).toLowerCase()===signer.address.toLowerCase())throw new Error('Self reviews are forbidden');
+              request=feedbackTransaction(payload);
+            }else{
+              const resolver=new Contract(identity.resolver,['function setText(bytes,string,string)'],provider);
+              request={to:resolver.target,data:resolver.interface.encodeFunctionData('setText',[dnsEncode(identity.name),row.key,row.value]),chainId:11155111};
+            }
+            const tx=await populateENSTransaction(signer,request);
             const fee=BigInt(tx.gasLimit)*BigInt(tx.maxFeePerGas??tx.gasPrice);
             if(BigInt(tx.gasLimit)>1_000_000n||fee>100_000_000_000_000n)throw new Error('ENS record edit exceeds gas policy');
             if(await provider.getBalance(signer.address)<fee)throw new Error('Employee needs Sepolia ETH');
             row.raw=await signer.signTransaction(tx);row.hash=keccak256(row.raw);
-            db.prepare("UPDATE ens_writes SET raw=?,hash=?,state='submitted',error=NULL WHERE id=?").run(row.raw,row.hash,row.id);
+            db.prepare("UPDATE ens_writes SET raw=?,hash=?,state='submitted',error=NULL,signed_at=? WHERE id=?").run(row.raw,row.hash,Math.floor(Date.now()/1000),row.id);
           }
           let receipt=await provider.getTransactionReceipt(row.hash);
           if(!receipt) {
@@ -49,7 +70,7 @@ export function createENSWriter(db,directory,getWallet,onConfirmed=()=>{}) {
           }
           if(!receipt)break;
           db.prepare('UPDATE ens_writes SET state=?,error=? WHERE id=?').run(receipt.status===1?'confirmed':'failed',receipt.status===1?null:'Resolver rejected the delegated edit',row.id);
-          if(receipt.status===1)onConfirmed({label:row.label,key:row.key,value:row.value,hash:row.hash});
+          if(receipt.status===1)onConfirmed({label:row.label,key:row.key,value:row.key==='erc8004.feedback'?null:row.value,hash:row.hash});
         }catch(error) {
           if(!row.raw&&error.message==='Employee is fired or expired') {
             db.prepare("UPDATE ens_writes SET state='failed',error='Employee is fired or expired' WHERE id=?").run(row.id);

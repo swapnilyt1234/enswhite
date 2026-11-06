@@ -7,11 +7,13 @@ export function createAgentStore(db){
  CREATE TABLE IF NOT EXISTS company_profiles(id INTEGER PRIMARY KEY,mission_id TEXT UNIQUE,profile TEXT NOT NULL,created_at INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS agent_quotes(mission_id TEXT NOT NULL,vendor TEXT NOT NULL,department TEXT NOT NULL,brief TEXT NOT NULL,quote TEXT NOT NULL,PRIMARY KEY(mission_id,vendor));
  CREATE TABLE IF NOT EXISTS finance_proposals(id TEXT PRIMARY KEY,mission_id TEXT,allocations TEXT NOT NULL,rationale TEXT NOT NULL,source TEXT NOT NULL,state TEXT NOT NULL,created_at INTEGER NOT NULL);`);
+ if(!db.prepare('PRAGMA table_info(agent_runs)').all().some(x=>x.name==='version'))db.exec('ALTER TABLE agent_runs ADD COLUMN version INTEGER NOT NULL DEFAULT 1');
+ db.exec("CREATE TABLE IF NOT EXISTS founder_questions(id TEXT PRIMARY KEY,run_id TEXT NOT NULL,question TEXT NOT NULL,answer TEXT,created_at INTEGER NOT NULL)");
  const time=()=>Date.now();
  return{
-  ensure(mission,department,source,purpose='mission'){const id=`${mission}:${department}:${purpose}`,t=time();db.prepare("INSERT OR IGNORE INTO agent_runs(id,mission_id,department,purpose,source,state,created_at,updated_at) VALUES(?,?,?,?,?,'queued',?,?)").run(id,mission,department,purpose,source,t,t);return id},
+  ensure(mission,department,source,purpose='mission',version=1){const id=`${mission}:${department}:${purpose}`,t=time();db.prepare("INSERT OR IGNORE INTO agent_runs(id,mission_id,department,purpose,source,state,created_at,updated_at,version) VALUES(?,?,?,?,?,'queued',?,?,?)").run(id,mission,department,purpose,source,t,t,version);return id},
   run:id=>db.prepare('SELECT * FROM agent_runs WHERE id=?').get(id),
-  runs:()=>db.prepare('SELECT id,mission_id,department,purpose,source,state,calls,attempts,error,created_at,updated_at FROM agent_runs ORDER BY created_at DESC LIMIT 100').all(),
+  runs:()=>db.prepare('SELECT id,mission_id,department,purpose,source,state,calls,attempts,error,created_at,updated_at,version FROM agent_runs ORDER BY created_at DESC LIMIT 100').all(),
   actions:id=>db.prepare('SELECT * FROM agent_actions WHERE run_id=? ORDER BY rowid').all(id).map(x=>({...x,arguments:JSON.parse(x.arguments),result:x.result?JSON.parse(x.result):null})),
   message(run,recipient,kind,content){db.prepare('INSERT INTO agent_messages(run_id,mission_id,sender,recipient,kind,content,created_at) VALUES(?,?,?,?,?,?,?)').run(run.id,run.mission_id,run.department,recipient,kind,JSON.stringify(content),time())},
   messages:mission=>db.prepare('SELECT * FROM agent_messages WHERE mission_id=? ORDER BY id LIMIT 100').all(mission).map(x=>({...x,content:JSON.parse(x.content)})),

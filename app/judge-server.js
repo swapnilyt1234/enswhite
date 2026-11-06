@@ -50,6 +50,7 @@ export function createJudgeApp({origin,owner=false,proof=createLiveProof(),works
     // Fixed upstream only. Keep raw webhook bytes and SSE streams intact.
     const proxy=(req,res)=>{const upstream=ownerRequest({hostname:'127.0.0.1',port:3004,path:req.url,method:req.method,headers:{...req.headers,host:new URL(origin).host}},response=>{res.writeHead(response.statusCode,response.headers);response.pipe(res)});upstream.on('error',()=>{if(!res.headersSent)res.status(502).json({error:'Founder service unavailable'});else res.destroy()});req.on('aborted',()=>upstream.destroy());res.on('close',()=>upstream.destroy());req.pipe(upstream)};
     app.post('/api/webhooks/razorpay',proxy);
+    app.all(/^\/(?:launch|company)(?:\/|$)/,proxy);
     app.get(/^\/owner$/,(req,res)=>res.redirect('/owner/'));
     app.use('/owner',proxy);
   }

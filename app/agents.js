@@ -1,3 +1,4 @@
+import {landingSection} from './landing-section.js';
 const clean = (value,max=1600) => String(value).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').slice(0, max);
 export async function modelText(instructions, input, fallback, env = process.env) {
   if (env.AGENT_MODE !== 'llm') return { text: fallback, source: 'offline deterministic content' };
@@ -23,6 +24,10 @@ export async function vendorWork(vendor, task, env) {
   const mission=clean(task.match(/^Mission:\s*(.+)$/im)?.[1]||task).replace(/^(write|create|make|design)\s+.*?\s+for:\s*/i,'').slice(0,120);
   const headline=clean(task.match(/^Headline:\s*(.+)$/im)?.[1]||(/diwali/i.test(mission)?`${business}: light up Diwali`:`${business}: ${mission.replace(/[.!]$/,'')}`)).replace(/^#+\s*/,'').slice(0,100);
   if(vendor==='lingualink'&&env.AGENT_MODE!=='llm'&&task.includes('Founder-sourced FAQ:'))return{type:'text',source:'offline source-preserving FAQ',content:`${business} · ${/Marathi/.test(task)?'मराठी':'हिन्दी'} customer help draft\nOffline mode: source answers are preserved verbatim; translation has not been performed.\n\n${task.split('Founder-sourced FAQ:\n')[1]}`};
+  if(vendor==='pixelpress'&&task.includes('Deliverable: HTML landing section')){
+    const output=await modelText('Create a usable landing section from delivered copy and founder facts. Return only JSON with exactly headline, body and cta strings. No markdown fences, invented facts, promises or discounts. Headline under 160 characters, body under 1600, CTA under 160. Put missing policy warnings in body, never in the headline.',task,JSON.stringify({headline,body:offer,cta:'Contact us to learn more'}),env);
+    return{type:'html',content:landingSection(output.text),source:output.source};
+  }
   if (vendor === 'pixelpress') {
     const product=clean(task.match(/^Product:\s*(.+)$/im)?.[1]||mission).slice(0,75);
     const xml=value=>value.replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[char]));
@@ -37,7 +42,7 @@ export async function vendorWork(vendor, task, env) {
     : /marathi|मराठी/i.test(task)
       ? `वारंवार विचारले जाणारे प्रश्न\n\nप्रश्न: मी ऑर्डर कशी देऊ?\nउत्तर: अॅपमध्ये आपले आवडते उत्पादन निवडा आणि ऑर्डर पूर्ण करा.\n\nप्रश्न: मदत कुठे मिळेल?\nउत्तर: अॅपमधून आमच्या सहाय्य पथकाशी संपर्क साधा.\n\nप्रश्न: उपलब्धता कशी तपासू?\nउत्तर: उपलब्धतेची माहिती उत्पादन पृष्ठावर पाहा.`
       : `अक्सर पूछे जाने वाले प्रश्न\n\nप्रश्न: मैं ऑर्डर कैसे करूँ?\nउत्तर: ऐप में अपना पसंदीदा उत्पाद चुनें और ऑर्डर पूरा करें।\n\nप्रश्न: सहायता कहाँ मिलेगी?\nउत्तर: हमारी सहायता टीम से ऐप के माध्यम से संपर्क करें।\n\nप्रश्न: उपलब्धता कैसे जाँचें?\nउत्तर: उपलब्धता और ऑफ़र की जानकारी उत्पाद पृष्ठ पर देखें।`;
-  const output = await modelText(vendor === 'copydesk' ? 'Write concise, usable advertising copy for the brief. No fabricated discounts, availability claims or payment instructions. Plain text.' : 'Translate a short, useful customer FAQ into Hindi, or Marathi if requested. Do not invent campaign dates or discounts. Plain text.', task, fallback, env);
+  const output = await modelText(vendor === 'copydesk' ? 'Write concise, usable advertising copy for the brief. No fabricated discounts, availability claims or payment instructions. Put a usable campaign headline on the first line; missing-fact warnings belong at the end under Notes. Plain text.' : 'Translate a short, useful customer FAQ into Hindi, or Marathi if requested. Do not invent campaign dates or discounts. Plain text.', task, fallback, env);
   if(vendor==='lingualink'&&output.source.startsWith('seeded fallback'))output.text=`${business}\n${/diwali/i.test(mission)?(/marathi/i.test(task)?'दिवाळी मोहिमेसाठी ग्राहक मदत':'दिवाली अभियान के लिए ग्राहक सहायता'):(/marathi/i.test(task)?'आमच्या नवीन मोहिमेसाठी ग्राहक मदत':'हमारे नए अभियान के लिए ग्राहक सहायता')}\n\n${output.text}`;
   return { type: 'text', content: output.text, source: output.source };
 }

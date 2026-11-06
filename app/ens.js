@@ -47,7 +47,7 @@ export function createENSDirectory(env = process.env, connection) {
   const request=new FetchRequest(url);request.timeout=10000;
   const provider = connection || new JsonRpcProvider(request, 11155111, { cacheTimeout: 0 });
   const registry = new Contract(env.ENS_COMPANY_REGISTRY, ENS_REGISTRY_ABI, provider);
-  const registrations=identityManifest();
+  const registrations=identityManifest(env.ENS_IDENTITY_FILE);
   const hireReceipts=new Map();
   async function resolver(name) {
     if ((await provider.getNetwork()).chainId !== 11155111n) throw new Error('ENS must resolve on Sepolia');

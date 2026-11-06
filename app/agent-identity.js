@@ -11,10 +11,10 @@ export function registrationKey(chainId,registry,agentId){
 export function agentRegistration(label,name,origin,id){
  if(!['marketing','support','finance'].includes(label)||new URL(origin).protocol!=='https:')throw new Error('Invalid public agent profile');
  if(!/^\d+$/.test(String(id))||!Number.isSafeInteger(Number(id)))throw new Error('Agent ID cannot be represented safely in registration JSON');
- return {type:'https://eips.ethereum.org/EIPS/eip-8004#registration-v1',name,description:`EnsWhite ${label} department. Custom x402 enswhite-receive on Whitechain Sepolia; no public signing endpoint. ENS employment and company limits separately govern payments.`,image:'https://raw.githubusercontent.com/swapnilyt1234/enswhite/main/docs/images/enswhite-avatar.svg',services:[{name:'web',endpoint:`${new URL(origin).origin}/agents/${label}`},{name:'ENS',endpoint:name,version:'2'}],x402Support:true,active:true,registrations:[{agentId:Number(id),agentRegistry:`eip155:11155111:${IDENTITY_REGISTRY}`}],supportedTrust:[]};
+ return {type:'https://eips.ethereum.org/EIPS/eip-8004#registration-v1',name,description:`EnsWhite ${label} department. Custom x402 enswhite-receive on Whitechain Sepolia; no public signing endpoint. ENS employment and company limits separately govern payments.`,image:'https://raw.githubusercontent.com/swapnilyt1234/enswhite/main/docs/images/enswhite-avatar.svg',services:[{name:'web',endpoint:`${new URL(origin).origin}/agents/${label}`},{name:'ENS',endpoint:name,version:'2'}],x402Support:true,active:true,registrations:[{agentId:Number(id),agentRegistry:`eip155:11155111:${IDENTITY_REGISTRY}`}],supportedTrust:['reputation']};
 }
 export const registrationURI=profile=>'data:application/json;base64,'+Buffer.from(JSON.stringify(profile)).toString('base64');
-export function identityManifest(){const file=new URL('../docs/deployments/agent-identities.json',import.meta.url);return existsSync(file)?JSON.parse(readFileSync(file,'utf8')):[]}
+export function identityManifest(path){const file=path||new URL('../docs/deployments/agent-identities.json',import.meta.url);return existsSync(file)?JSON.parse(readFileSync(file,'utf8')):[]}
 export async function verifyAgentBinding(identity,entry,getText,registry){
  const key=registrationKey(11155111,IDENTITY_REGISTRY,entry.agentId),claim=await getText(key);
  if(!claim)return {verified:false,key,reason:'ENS registration consent missing'};

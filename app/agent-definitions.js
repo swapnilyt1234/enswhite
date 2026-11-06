@@ -20,3 +20,14 @@ export function validateArguments(schema,value){
  }else throw new Error('Unsupported tool schema');
  if(schema.enum&&!schema.enum.includes(value))throw new Error('Tool value is not allowlisted');
 }
+
+// Existing saved runs retain their original tool protocol.
+export const JOURNEY_TOOLS=Object.fromEntries(Object.keys(EMPLOYEES).map(role=>[role,[
+ tool('find_vendors','Find policy-approved vendors by capability; reputation uses only company department clients.',{capability:text(100)}),
+ ...(role==='finance'?[EMPLOYEES.finance.tools.find(x=>x.name==='propose_allocation')]:[tool('buy','Buy through verified x402, ENS and existing spending policy. max_price is integer six-decimal test-USDT units, never rupees.',{vendor:vendors(role),brief:text(800),max_price:{type:'string',pattern:'^\\d{1,8}$'}})]),
+ tool('handoff','Share an artifact with another employee. This does not grant payment authority.',{department:{type:'string',enum:Object.keys(EMPLOYEES).filter(x=>x!==role)},artifact:text(3000)}),
+ tool('ask_founder','Ask for missing business facts. Work pauses until the founder answers.',{question:text(500)}),
+ tool('deliver','Submit usable work and rate each purchased vendor from its actual delivery (1-5 stars with reasons). Finance supplies an empty reviews list. Backend verifies deliveries, payment proofs and receipts first.',{artifact:text(3000),reviews:{type:'array',minItems:0,maxItems:2,items:object({vendor:{type:'string',enum:role==='marketing'?['copydesk','pixelpress']:role==='support'?['lingualink']:['none']},stars:{type:'string',enum:['1','2','3','4','5']},comment:text(1000)})}})
+]]));
+export const toolsFor=run=>run.version===2?JOURNEY_TOOLS[run.department]:EMPLOYEES[run.department].tools;
+export const toolLimit=run=>run.version===2?6:8;

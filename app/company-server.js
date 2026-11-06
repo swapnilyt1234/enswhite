@@ -20,6 +20,8 @@ export function createCompanyApp(company, origin, { guest = false } = {}) {
   app.get('/api/agent-runs/:id',(req,res)=>res.json(company.agentHistory(req.params.id)));
   app.post('/api/agent-runs/:id/retry',(req,res)=>{const result=company.retryAgent(req.params.id);void company.processJobs().catch(()=>{});res.json(result)});
   app.post('/api/finance/proposal',(req,res)=>{company.requestFinanceProposal().then(result=>{void company.processJobs().catch(()=>{});res.status(202).json(result)}).catch(error=>res.status(error.status||500).json({error:'Finance proposal could not start.'}))});
+  app.post('/api/founder-questions/:id', (req,res)=>{const result=company.answerFounder(req.params.id,req.body.answer);void company.processJobs().catch(()=>{});res.json(result)});
+  app.post('/api/reviews/employees',async(req,res)=>{const {mission,department,score,comment}=req.body||{};res.status(202).json(await company.review('employee',mission,department,'founder',score,comment));void company.processJobs().catch(()=>{})});
   app.post('/api/business',(req,res)=>res.json(company.updateBusiness(req.body)));
   app.get('/api/kits/:id',(req,res)=>res.json(company.kit(req.params.id)));
   app.get('/api/kits/:id/download',(req,res)=>res.type('html').set('Content-Disposition','attachment; filename="enswhite-campaign-kit.html"').send(campaignKitHTML(company.kit(req.params.id))));
@@ -64,8 +66,10 @@ export function createCompanyApp(company, origin, { guest = false } = {}) {
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const port = Number(process.env.PORT || 3003), origin = (process.env.APP_ORIGIN || `http://localhost:${port}`).trim();
   const company = await createCompany();
-  const server = createCompanyApp(company, origin).listen(port, '127.0.0.1', () => console.log(`EnsWhite agent company: ${origin}\n${company.chain.mode} · custom x402 enswhite-receive · three departments, three independent vendors`));
+  const launch=process.env.ENS_ENABLED==='true'?(await import('./launch-server.js')).createLaunchGateway(origin,{appFactory:createCompanyApp}):null;
+  const root=baseApp(origin);if(launch)root.use(launch.app);root.use(createCompanyApp(company,origin));root.use((error,req,res,next)=>res.status(error.status||500).json({error:error.status<500?error.message:'Company setup or RPC is unavailable; saved work is retained.'}));
+  const server = root.listen(port, '127.0.0.1', () => console.log(`EnsWhite agent company: ${origin}\n${company.chain.mode} · custom x402 enswhite-receive · three departments, three independent vendors`));
   const timer = setInterval(() => { void company.processJobs().catch(() => {}); }, 5000); timer.unref();
   void company.processJobs().catch(() => {});
-  for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => { clearInterval(timer); server.close(async () => { await company.close(); }); });
+  for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => { clearInterval(timer); server.close(async () => { await launch?.close();await company.close(); }); });
 }

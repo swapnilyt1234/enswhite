@@ -1,8 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
-import {Interface} from 'ethers';
+import {Interface,Wallet,Transaction} from 'ethers';
 import {createENSWriter} from './ens-writer.js';
+import {feedbackPayload,REPUTATION_REGISTRY,REPUTATION_ABI} from './reputation.js';
+import {IDENTITY_REGISTRY,AGENT_ABI} from './agent-identity.js';
+
+test('reviews use the same saved sequential signer queue and preserve the payment-proof commitment',async()=>{
+ const db=new DatabaseSync(':memory:'),wallet=Wallet.createRandom(),vendor=Wallet.createRandom(),reputation=new Interface(REPUTATION_ABI),identity=new Interface(AGENT_ABI);let signs=0,receipt=null;
+ const provider={getNetwork:async()=>({chainId:11155111n}),getBalance:async()=>10n**18n,getTransactionReceipt:async()=>receipt,getTransaction:async()=>({}),broadcastTransaction:async()=>{},call:async tx=>tx.to.toLowerCase()===REPUTATION_REGISTRY.toLowerCase()?reputation.encodeFunctionResult('getIdentityRegistry',[IDENTITY_REGISTRY]):identity.encodeFunctionResult('ownerOf',[vendor.address])};
+ const signer={address:wallet.address,connect(){return this},populateTransaction:async tx=>({...tx,nonce:0,gasLimit:210000n,gasPrice:1n,type:0}),signTransaction:async tx=>{signs++;return wallet.signTransaction(tx)}};
+ const writer=createENSWriter(db,{provider,employee:async()=>({wallet:wallet.address})},()=>signer),payload=feedbackPayload({agentId:'42',client:wallet.address,score:4,comment:'Usable copy',proof:{chainId:'1874',txHash:'0x'+'ab'.repeat(32),fromAddress:wallet.address,toAddress:vendor.address}});
+ try{writer.queueFeedback('marketing',payload,'paid-review-01');await writer.process();assert.equal(signs,1);const row=db.prepare('SELECT * FROM ens_writes').get(),tx=Transaction.from(row.raw),call=reputation.parseTransaction(tx);assert.equal(tx.to,REPUTATION_REGISTRY);assert.equal(call.args.feedbackHash,payload.hash);assert.equal(call.args.tag1,'starred');assert(row.signed_at);receipt={status:1};await writer.process();assert.equal(signs,1);assert.equal(writer.jobs()[0].state,'confirmed');assert.throws(()=>writer.queueFeedback('marketing',{...payload,hash:'0x'+'00'.repeat(32)},'tampered'),/integrity/)}finally{db.close()}
+});
 
 test('ENS edits use the delegated actor and recover signed bytes without signing a second transaction',async()=>{
  const db=new DatabaseSync(':memory:');
