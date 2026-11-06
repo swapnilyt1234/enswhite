@@ -1,0 +1,26 @@
+[
+  {
+    "label": "copydesk",
+    "agentId": "11305",
+    "owner": "0xC56233A476555fdc5a447F33B465FFceaE72BA94",
+    "registry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+    "registrationTransaction": "0x96364c1e26205eaa9aca4e23677eaad5ccd731479482baba750375e95c995834",
+    "metadataTransaction": "0x4853d52f51dbf5db8af5f35b9d90a6dc2e5012cb00a028b90c443f9100ed44cc"
+  },
+  {
+    "label": "pixelpress",
+    "agentId": "11306",
+    "owner": "0x5DD69420F209E4D36e044986fe06376dAA72cfbc",
+    "registry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+    "registrationTransaction": "0x4ab48a1b81456f2ce9f7d54ffd896b5b178e9de394aca3e2911912eccb0fee9d",
+    "metadataTransaction": "0x598fed444c61e96eb3b58b84f7e79eeeff3f4c7cfb2bc021c8eea43a77261b57"
+  },
+  {
+    "label": "lingualink",
+    "agentId": "11307",
+    "owner": "0xa266C246C50b5e251D4E202d416021ffd994cEf9",
+    "registry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+    "registrationTransaction": "0x60644c6dc6d103264a86232bab8b9fc5c84c1c477d46cb8c41404e4e26ba5ef4",
+    "metadataTransaction": "0x9a5339ddc6d9654e42a2bd2fc81d4b87bd20fa3c76b41fd7606db7a5bffc024a"
+  }
+]

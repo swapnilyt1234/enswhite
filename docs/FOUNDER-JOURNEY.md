@@ -35,7 +35,9 @@ This is a custodial testnet service: the operator owns company namespaces/contra
 
 ## Verification status
 
-All 89 backend tests pass, including partial teams, visitor isolation, signer recovery, filtered reputation and feedback-file integrity. The six-decision GPT-6 Luna workflow passed using the real model with simulated settlement: Marketing five decisions, Support two, Finance two, plus all three vendor deliveries. Old saved orders and offline flows remain compatible. Isolated browser testing covered onboarding queueing, funding, allocations, work, approvals and a saved simulated employee review.
+All 90 backend tests pass, including partial teams, visitor isolation, signer recovery, filtered reputation and feedback-file integrity. The six-decision GPT-6 Luna workflow passed using the real model with simulated settlement: Marketing five decisions, Support two, Finance two, plus all three vendor deliveries. Old saved orders and offline flows remain compatible. Isolated browser testing covered onboarding queueing, funding, allocations, work, approvals and a saved simulated employee review.
+
+Vendor registration is now live and independently verified: CopyDesk #11305, PixelPress #11306 and LinguaLink #11307 are owned by their separate payee wallets. Live `getSummary` calls using the existing three department clients succeed and return zero reviews (unrated), as expected before feedback. Public registration receipts are in `docs/deployments/vendor-identities.json`.
 
 Fresh visitor provisioning and reputation broadcasts have **not** yet been verified live: they require the operator’s local keystore unlock and the activation above. Existing Acme deployment/mission proofs remain historical evidence, not proof of this new provisioning path. No mainnet action is involved. Fiat is simulated and test tokens have no monetary value.
 
