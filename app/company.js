@@ -1,3 +1,4 @@
+import {normalizeLandingSection} from './landing-section.js';
 import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import {existsSync,readFileSync} from 'node:fs';
 import {Contract} from 'ethers';
@@ -73,7 +74,7 @@ export async function createCompany({ env = process.env, directory = resolve(env
     const vendorIdentityFile=resolve('docs/deployments/vendor-identities.json');
     const vendorIdentities=existsSync(vendorIdentityFile)?JSON.parse(readFileSync(vendorIdentityFile,'utf8')):[];
     db.exec('CREATE TABLE IF NOT EXISTS company_reviews(id TEXT PRIMARY KEY,kind TEXT NOT NULL,mission TEXT NOT NULL,target TEXT NOT NULL,department TEXT NOT NULL,score INTEGER NOT NULL,comment TEXT NOT NULL,created_at TEXT NOT NULL)');
-    const ensWriter=directoryENS?createENSWriter(db,directoryENS,getWallet,event=>activity.record(event.label,event.key==='erc8004.feedback'?'review_confirmed':event.key==='enswhite.status'?'ens_status':'budget_updated',event.key==='erc8004.feedback'?'My ERC-8004 review is confirmed.':event.key==='enswhite.status'?`My ENS status is now ${event.value}.`:`Finance updated my ENS weekly budget to ${formatUnits(event.value,6)} test USDT.`,{data:{hash:event.hash,network:'sepolia',value:event.value},key:`ens:${event.hash}`})):null;
+    const ensWriter=directoryENS?createENSWriter(db,directoryENS,getWallet,event=>activity.record(event.label==='founder-reviewer'?'company':event.label,event.key==='erc8004.feedback'?'review_confirmed':event.key==='enswhite.status'?'ens_status':'budget_updated',event.key==='erc8004.feedback'?'My ERC-8004 review is confirmed.':event.key==='enswhite.status'?`My ENS status is now ${event.value}.`:`Finance updated my ENS weekly budget to ${formatUnits(event.value,6)} test USDT.`,{data:{hash:event.hash,network:'sepolia',value:event.value},key:`ens:${event.hash}`})):null;
     db.prepare('INSERT OR IGNORE INTO settings VALUES(?,?)').run('company_config', fingerprint);
     let running;
     const jobs = () => db.prepare('SELECT id,kind,state,hash,error,created_at FROM company_jobs ORDER BY created_at DESC').all();
@@ -197,7 +198,7 @@ export async function createCompany({ env = process.env, directory = resolve(env
         db.prepare('INSERT INTO company_profiles(profile,created_at) VALUES(?,?)').run(JSON.stringify(profile),Date.now());
         db.prepare("INSERT OR REPLACE INTO settings VALUES('business_profile',?)").run(JSON.stringify(profile));return profile;
       },
-      kit(id) {const row=db.prepare('SELECT kit FROM company_kits WHERE mission_id=?').get(id);if(!row)throw fail('Campaign Kit is waiting for all commissioned work to be delivered',409);return JSON.parse(row.kit)},
+      kit(id) {const row=db.prepare('SELECT kit FROM company_kits WHERE mission_id=?').get(id);if(!row)throw fail('Campaign Kit is waiting for all commissioned work to be delivered',409);const kit=JSON.parse(row.kit),landing=normalizeLandingSection(kit.landing);return{...kit,landing,...(landing!==kit.landing?{landingNote:'Nested markup was normalized for export. The original vendor delivery and its recorded review are preserved.'}:{})}},
       async manageENS(action,label,term=2592000,id) {
         if(!directoryENS||!employment)throw fail('Employee management is not configured',409);
         const dept=departments.find(row=>row.id===label);

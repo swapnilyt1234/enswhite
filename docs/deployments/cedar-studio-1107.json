@@ -226,7 +226,7 @@
       "hash": "0x34c3fe833988fadf98c8e72f066b00250ba69ef3b63c61e1e81822ba9f8a324d"
     }
   ],
-  "status": "Launch, hire, funding, work, delivery and vendor reputation verified live; founder employee ratings pending",
+  "status": "Full six-step founder journey verified live: launch, hire, funding, work, delivery, vendor and founder employee reputation",
   "topUp": {
     "transaction": "0xf0ee5ae84f16d45f525f74ec45dc99d066506a77ccdfd948d3d60476e45572da",
     "block": 12404756,
@@ -293,7 +293,7 @@
     ],
     "grossUnits": "400000",
     "feeUnits": "4000",
-    "qualityLimit": "Marketing rated PixelPress 2/5 and flagged escaped nested markup and an unnecessary policy caveat; the landing section needs cleanup before publication."
+    "qualityLimit": "Original PixelPress delivery was rated 2/5 for escaped nested markup and an unnecessary policy caveat. Export normalization removes the nested markup; original paid delivery and onchain review are preserved. Generated content still requires founder editorial review."
   },
   "reviews": [
     {
@@ -316,6 +316,27 @@
       "score": 4,
       "state": "confirmed",
       "hash": "0x824106e659137e495ebf7fcb16c1f49a20eaa9d5c63e89b7a0915191016b74bb"
+    },
+    {
+      "kind": "employee",
+      "target": "support",
+      "score": 5,
+      "state": "confirmed",
+      "hash": "0x1feb41c07052903a2b21f31313046ab273b4ac798446bf02f294e55ab522445a"
+    },
+    {
+      "kind": "employee",
+      "target": "finance",
+      "score": 5,
+      "state": "confirmed",
+      "hash": "0xb497185e2b8363fb4e989f4a3ad28e522f8b17f4f1c02c44057e74f84d11ad32"
+    },
+    {
+      "kind": "employee",
+      "target": "marketing",
+      "score": 5,
+      "state": "confirmed",
+      "hash": "0x661d92fb3dfc1d38275c787da269dc512b1470ae5a34732ad80e598f9b5e77ce"
     }
   ],
   "vendorReputationVerification": {
@@ -328,5 +349,17 @@
       "pixelpress": 40,
       "lingualink": 80
     }
-  }
+  },
+  "founderReviewVerification": {
+    "allConfirmed": true,
+    "reviewer": "0x2FD9b0FEB3f7640476616d242678E1103d0cBbce",
+    "ratings": {
+      "marketing": 5,
+      "support": 5,
+      "finance": 5
+    },
+    "fileHashesMatch": true,
+    "attribution": "Authenticated founder through dedicated service wallet"
+  },
+  "backendTestsPassed": 98
 }

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Wallet,Interface,keccak256,toUtf8Bytes} from 'ethers';
 import {rankVendors,feedbackPayload,feedbackTransaction,REPUTATION_ABI} from './reputation.js';
-import {landingSection} from './landing-section.js';
+import {landingSection,normalizeLandingSection} from './landing-section.js';
 
 test('reputation summaries require explicit company clients and matching payee identities',async()=>{
  const client=Wallet.createRandom().address,vendor=Wallet.createRandom().address;let read=0;
@@ -20,4 +20,10 @@ test('feedback commits the exact payment-proof file and 1–5 stars become starr
 test('model-written landing sections escape markup and cannot introduce executable attributes',()=>{
  const html=landingSection(JSON.stringify({headline:'<script>alert(1)</script>',body:'A & B',cta:'Buy "now"'}));assert(!html.includes('<script>'));assert(html.includes('&lt;script&gt;'));assert(html.includes('A &amp; B'));
  assert.throws(()=>landingSection('{"headline":"Title","body":"Body","cta":"Go","onclick":"bad"}'));
+});
+
+test('nested model markup becomes readable body text and legacy export normalization is idempotent',()=>{
+ const html=landingSection(JSON.stringify({headline:'Candles',body:'<section><h1>Thoughtful gifts</h1><p>Handmade &amp; meaningful.</p><a onclick="bad()" href="javascript:bad()">Explore</a></section>',cta:'Ask us'}));
+ assert(html.includes('Thoughtful gifts Handmade &amp; meaningful. Explore'));assert(!html.includes('onclick'));assert(!html.includes('javascript:'));assert(!html.includes('&lt;section'));
+ const legacy=html.replace('Thoughtful gifts Handmade &amp; meaningful. Explore','&lt;section&gt;Handmade candles&lt;/section&gt;'),clean=normalizeLandingSection(legacy);assert(clean.includes('>Handmade candles</p>'));assert.equal(normalizeLandingSection(clean),clean);assert(legacy.includes('&lt;section&gt;'));
 });
