@@ -1,0 +1,12 @@
+flowchart TB
+  F["Founder<br/>Sets a mission and funds a budget"] --> C["EnsWhite<br/>AI departments work within rules"]
+  C --> E["ENSv2 on Sepolia<br/>Who is employed? What may they do?"]
+  C --> W["Whitechain Sepolia<br/>What is funded? What may be paid?"]
+  E --> A["Authorized, funded departments<br/>Marketing · Support · Finance"]
+  W --> A
+  A --> V["Independent vendors<br/>CopyDesk · PixelPress · LinguaLink"]
+  V --> R["Delivered work + verifiable receipts<br/>Founder reviews results and books"]
+  classDef ens fill:#e9f0fd,stroke:#6681b3,color:#172e50
+  classDef bank fill:#e7f2e9,stroke:#527c63,color:#173f2b
+  class E ens
+  class W bank

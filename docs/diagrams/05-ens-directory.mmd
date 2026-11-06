@@ -1,0 +1,19 @@
+flowchart TB
+  ROOT["enswhite.eth<br/>Platform UserRegistry · Sepolia ENSv2"]
+  ROOT --> C["acme.enswhite.eth<br/>Company UserRegistry managed by EnsWhiteNames"]
+  ROOT --> V["vendors.enswhite.eth<br/>Emancipated vendor UserRegistry"]
+  C --> M["marketing.acme.enswhite.eth<br/>Agent owns employee token<br/>Its own resolver + Whitechain wallet record"]
+  C --> S["support.acme.enswhite.eth<br/>Agent owns employee token<br/>Its own resolver + Whitechain wallet record"]
+  C --> F["finance.acme.enswhite.eth<br/>Agent owns employee token<br/>Its own resolver + Whitechain wallet record"]
+  C --> BRAND["Company branding resolver<br/>Default record 0x00: name, avatar, URL<br/>Inherited by the app display"]
+  V --> CD["copydesk.vendors.enswhite.eth<br/>Vendor-owned token and resolver"]
+  V --> PP["pixelpress.vendors.enswhite.eth<br/>Vendor-owned token and resolver"]
+  V --> LL["lingualink.vendors.enswhite.eth<br/>Vendor-owned token and resolver"]
+  EMP["EMPLOYEE RULES<br/>Expiring · revocable · non-transferable<br/>Each agent can edit only its own status key"]
+  FIN["FINANCE DELEGATION<br/>May edit enswhite.budget.weekly<br/>on all three employee resolvers<br/>Cannot edit vendor allowlists or wallet records"]
+  VEN["VENDOR RULES<br/>Permanent expiry · transferable<br/>Own address and x402 endpoint records"]
+  C -.-> EMP
+  F -.-> FIN
+  V -.-> VEN
+  classDef ens fill:#e9f0fd,stroke:#6681b3,color:#172e50
+  class ROOT,C,V,M,S,F,BRAND,CD,PP,LL ens

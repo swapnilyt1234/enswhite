@@ -84,9 +84,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1793952612.6787798,
-    "seen": 1793952621.402355,
-    "ast_hash": "6b71d504266c34563a9bb2c3dadaa10a",
+    "mtime": 1793954034.574767,
+    "seen": 1793954364.0817163,
+    "ast_hash": "6c16fd7292f0a6a3e5b076d1938d2451",
     "semantic_hash": ""
   },
   "app/public/index.html": {
@@ -120,15 +120,15 @@
     "semantic_hash": ""
   },
   "app/company-chain.js": {
-    "mtime": 1793930192.5293229,
-    "seen": 1793930311.557618,
-    "ast_hash": "fdec48eb1243c0d6aedce364453815f5",
+    "mtime": 1793962183.7348552,
+    "seen": 1793962560.9346278,
+    "ast_hash": "dbdd21a822faef35bd101dcdf7d485dc",
     "semantic_hash": ""
   },
   "app/company-public/company-ui.js": {
-    "mtime": 1793952411.68197,
-    "seen": 1793952621.385608,
-    "ast_hash": "a45023b7d37cc91672989a68f8691296",
+    "mtime": 1793962183.742452,
+    "seen": 1793962560.934954,
+    "ast_hash": "86136a16b801cd3ab68f1074243abe10",
     "semantic_hash": ""
   },
   "app/company-server.js": {
@@ -150,15 +150,15 @@
     "semantic_hash": ""
   },
   "app/company.js": {
-    "mtime": 1793950102.2312026,
-    "seen": 1793950817.1160712,
-    "ast_hash": "e50301e1f85814c7247fb95aa2bb85c8",
+    "mtime": 1793962183.7394397,
+    "seen": 1793962560.9353344,
+    "ast_hash": "4a2415880d32e664f09dbc78b303b308",
     "semantic_hash": ""
   },
   "app/company.test.js": {
-    "mtime": 1793948479.711658,
-    "seen": 1793948491.3906927,
-    "ast_hash": "81bfd9d8e4febaec00aff2325756d024",
+    "mtime": 1793962284.4451053,
+    "seen": 1793962560.9353366,
+    "ast_hash": "6207dca109c8d89793104a55f0804d7c",
     "semantic_hash": ""
   },
   "app/http.js": {
@@ -210,15 +210,15 @@
     "semantic_hash": ""
   },
   "app/company-public/index.html": {
-    "mtime": 1793950375.8156316,
-    "seen": 1793950817.1332219,
-    "ast_hash": "1f61d5e26ae864181da8474fe3771637",
+    "mtime": 1793962183.740448,
+    "seen": 1793962560.940606,
+    "ast_hash": "73aa95e897567c7dc6fc23bfd37139e4",
     "semantic_hash": ""
   },
   "docs/architecture.md": {
-    "mtime": 1793948480.9482257,
-    "seen": 1793948491.3942,
-    "ast_hash": "8cbb8f91d2a0b23170f053fba7129440",
+    "mtime": 1793953549.0689328,
+    "seen": 1793954364.0831969,
+    "ast_hash": "4b53addc892801738b88aeab22fdb1f6",
     "semantic_hash": ""
   },
   "docs/payment-lab.md": {
@@ -351,6 +351,126 @@
     "mtime": 1793952009.1447225,
     "seen": 1793952621.3839517,
     "ast_hash": "d4225e841815c83c1ec89b43e4808b94",
+    "semantic_hash": ""
+  },
+  "docs/diagrams/build-guide.py": {
+    "mtime": 1793954034.5686493,
+    "seen": 1793954364.0695946,
+    "ast_hash": "f5feb2575139c319762d537252dbfc7a",
+    "semantic_hash": ""
+  },
+  "docs/diagrams/mermaid-config.json": {
+    "mtime": 1793953843.3745737,
+    "seen": 1793954364.0696049,
+    "ast_hash": "a96811bb4c5bda79c3c95eabfd3589a8",
+    "semantic_hash": ""
+  },
+  "docs/diagrams/README.md": {
+    "mtime": 1793954034.5706432,
+    "seen": 1793954364.0832071,
+    "ast_hash": "10ae8bf9842129701be446078d9829f4",
+    "semantic_hash": ""
+  },
+  "docs/project-flow.html": {
+    "mtime": 1793954549.994981,
+    "seen": 1793954584.3090403,
+    "ast_hash": "a6e3855aa249a64fed217abd367974db",
+    "semantic_hash": ""
+  },
+  "docs/project-flow.md": {
+    "mtime": 1793954034.572645,
+    "seen": 1793954364.0839186,
+    "ast_hash": "e0ea096dafc63d1c604d86b1344bc407",
+    "semantic_hash": ""
+  },
+  "docs/diagrams/01-concept.png": {
+    "mtime": 1793954068.1659567,
+    "seen": 1793954364.0839233,
+    "ast_hash": "edb34a16a0b13657d6823d4b436663a5",
+    "semantic_hash": ""
+  },
+  "docs/diagrams/01-concept.svg": {
+    "mtime": 1793953849.756118,
+    "seen": 1793954364.0839279,
+    "ast_hash": "4a8b925df80a48c48cdf63d850843c3f",
+    "semantic_hash": ""
+  },
+  "docs/diagrams/02-architecture.png": {
+    "mtime": 1793954268.268514,
+    "seen": 1793954364.0839322,
+    "ast_hash": "aafad9132f1bb5049104b81af8a8d0b4",
+    "semantic_hash": ""
+  },
+  "docs/diagrams/02-architecture.svg": {
+    "mtime": 1793954259.3226705,
+    "seen": 1793954364.083936,
+    "ast_hash": "8469b671cb0e2d9ccfd8cbf82bf03f9d",
+    "semantic_hash": ""
+  },
+  "docs/diagrams/03-funding.png": {
+    "mtime": 1793954081.722057,
+    "seen": 1793954364.08394,
+    "ast_hash": "b42988159066dbda6b3a55919798b97c",
+    "semantic_hash": ""
+  },
+  "docs/diagrams/03-funding.svg": {
+    "mtime": 1793953862.970608,
+    "seen": 1793954364.0839438,
+    "ast_hash": "63907ab6f7d9526aa77f11ff6c3447ba",
+    "semantic_hash": ""
+  },
+  "docs/diagrams/04-payment.png": {
+    "mtime": 1793954087.9236567,
+    "seen": 1793954364.0839477,
+    "ast_hash": "2286d8d3902f2de6aa48e6a2f42f31ab",
+    "semantic_hash": ""
+  },
+  "docs/diagrams/04-payment.svg": {
+    "mtime": 1793953869.3162184,
+    "seen": 1793954364.0839522,
+    "ast_hash": "274f055943bd2e62b6e296ac8cee4028",
+    "semantic_hash": ""
+  },
+  "docs/diagrams/05-ens-directory.png": {
+    "mtime": 1793954513.771907,
+    "seen": 1793954584.3212283,
+    "ast_hash": "66258c211b27cd01b4e9bf16dfb5e20b",
+    "semantic_hash": ""
+  },
+  "docs/diagrams/05-ens-directory.svg": {
+    "mtime": 1793954494.4398184,
+    "seen": 1793954584.3212385,
+    "ast_hash": "dc6e7fb854c649b0a9363134ac5754ad",
+    "semantic_hash": ""
+  },
+  "docs/diagrams/06-employment.png": {
+    "mtime": 1793954103.1063437,
+    "seen": 1793954364.0839646,
+    "ast_hash": "fc1e97fe1c1eba8c332071fe4d13a07b",
+    "semantic_hash": ""
+  },
+  "docs/diagrams/06-employment.svg": {
+    "mtime": 1793953882.2636302,
+    "seen": 1793954364.0839684,
+    "ast_hash": "a0e1979afc2fcc71c15412b44f6c6844",
+    "semantic_hash": ""
+  },
+  "docs/diagrams/07-gas.png": {
+    "mtime": 1793954546.3766594,
+    "seen": 1793954584.3230643,
+    "ast_hash": "c5658c60413289e28c5cd36e652a1234",
+    "semantic_hash": ""
+  },
+  "docs/diagrams/07-gas.svg": {
+    "mtime": 1793954528.2167165,
+    "seen": 1793954584.323073,
+    "ast_hash": "9fd6a02061d6e586ab508c1229cc2ba6",
+    "semantic_hash": ""
+  },
+  "docs/whitechain-payment-links.md": {
+    "mtime": 1793959462.5858505,
+    "seen": 1793959495.0721622,
+    "ast_hash": "9888a758749d22f704fffd8f7836a23f",
     "semantic_hash": ""
   }
 }

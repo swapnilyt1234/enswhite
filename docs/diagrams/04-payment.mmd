@@ -1,0 +1,31 @@
+sequenceDiagram
+  autonumber
+  participant F as Founder
+  participant B as EnsWhite backend
+  participant E as Sepolia ENSv2
+  participant V as Vendor server
+  participant S as Dept + attester signers
+  participant R as WBT relayer
+  participant C as Whitechain company
+  F->>B: Mission and any required purchase approval
+  B->>E: Resolve employee and vendor and read current policy
+  E-->>B: Wallets, expiry, limits, allowlist and endpoint
+  Note over B,E: Reject fired / expired employees and mismatched vendors
+  B->>V: POST /work with reserved request ID
+  V-->>B: HTTP 402 + PAYMENT-REQUIRED
+  Note over B,V: Check price, network, token, request ID<br/>payTo must be company and vendor field must match ENS
+  B->>B: Reserve budget and require approval above threshold
+  B->>E: Refresh ENS policy immediately before signing
+  B->>S: Department signs EIP-3009 authorization to company<br/>Attester signs request-bound ENS policy
+  S-->>B: Payment signature + policy signature
+  B->>R: Persist signed transaction, then submit
+  R->>C: pay(...) using WBT gas
+  Note over R,C: Contract verifies policy signature, expiry, weekly limits,<br/>vendor, call/day limits, replay and token authorization
+  C->>C: Receive gross USDT from department<br/>Send 99% to vendor and retain 1% fee<br/>Emit Paid with both ENS namehashes
+  C-->>B: Confirmed transaction receipt
+  B->>V: Retry /work with PAYMENT-RESPONSE transaction hash
+  V->>C: Independently verify the real payment receipt
+  C-->>V: Matching request, department, vendor and amount
+  V-->>B: Deliver copy / banner / translated FAQ
+  B-->>F: Delivered result + books / explorer proof
+  Note over B,R: An uncertain broadcast retries the same saved bytes,<br/>not a newly signed payment

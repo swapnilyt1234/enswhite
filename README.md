@@ -4,6 +4,8 @@
 
 [Live demo](https://zoning-playhouse-banister.ngrok-free.dev/) · [Public deployment and payment proofs](docs/deployments/enswhite-testnets.json). Founder sign-in is required; obtain demo access from the project team. The tunnel and local company/vendor processes must remain running.
 
+[Project flow and architecture — seven diagrams with speaker notes](docs/project-flow.md) · [Offline presentation](docs/project-flow.html)
+
 EnsWhite is the money layer for a solo founder's agent company: corporate cards and expense reports for AI employees. Marketing buys copy and a banner. Support buys a translated FAQ. Finance signs allocations, reconciles receipts and flags above-threshold spending. Every vendor payment goes to an independent vendor wallet; departments never pay each other.
 
 **Fiat is simulated. This runs on Whitechain Sepolia and uses test USDT with no real monetary value. No fiat-to-USDT conversion occurs.** The demo allocation is INR 500 → 5 test USDT (INR 100 per test USDT for the founder's display). This is a fixed demo allocation, not an exchange rate.

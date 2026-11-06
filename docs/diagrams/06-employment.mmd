@@ -1,0 +1,22 @@
+flowchart TB
+  SIGNUP["Founder registers company namespace<br/>EnsWhiteNames creates its UserRegistry"] --> HIRE["Founder hires a department<br/>Wallet + term + spending policy"]
+  HIRE --> RES["Deploy separate Permissioned Resolver<br/>Set wallet, weekly/per-call limits and vendor allowlist<br/>Grant scoped Finance and agent permissions"]
+  RES --> TOKEN["Mint employee token to department wallet<br/>Expiry set; transfer permission omitted"]
+  TOKEN --> ACTIVE["Active employee<br/>Eligible for fresh payment authorization"]
+  ACTIVE --> RENEW["Founder or Finance renews term"]
+  RENEW --> ACTIVE
+  ACTIVE --> FIRE["Founder fires employee<br/>Unregister name / burn token"]
+  ACTIVE --> EXPIRE["Employment term expires"]
+  FIRE --> INACTIVE["Inactive employee<br/>Fresh ENS checks refuse new authorizations"]
+  EXPIRE --> INACTIVE
+  INACTIVE --> REHIRE["Founder rehires<br/>New resolver + new token + new term"]
+  REHIRE --> ACTIVE
+  ACTIVE --> STATUS["Agent signs status updates<br/>Finance signs requested budget edits<br/>Separate Sepolia gas and saved transaction queue"]
+  ACTIVE --> POLICY["Trusted backend signs short-lived ENS policy<br/>Request ID, wallets, nodes, limits and expiry"]
+  POLICY --> BANK["Whitechain verifies the policy signature<br/>and refuses an expired policy / name"]
+  FIRE -.-> WINDOW["Revocation boundary<br/>An already-signed policy can remain valid<br/>for up to 60 seconds, never past name expiry"]
+  WINDOW -.-> BANK
+  classDef ens fill:#e9f0fd,stroke:#6681b3,color:#172e50
+  classDef warn fill:#fff3d8,stroke:#b18b3d,color:#594315
+  class HIRE,RES,TOKEN,ACTIVE,RENEW,FIRE,EXPIRE,INACTIVE,REHIRE,STATUS ens
+  class WINDOW warn

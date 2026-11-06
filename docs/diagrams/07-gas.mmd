@@ -1,0 +1,21 @@
+flowchart TB
+  WATCH["Separate owner-operated gas watcher<br/>Checks relayer periodically"] --> LOW{"Relayer below 0.05 WBT?"}
+  LOW -->|"No"| HEALTHY["Healthy: no withdrawal or swap"]
+  HEALTHY --> NEXT["Continue periodic checks"]
+  LOW -->|"Yes"| FEES{"Earned fee USDT available?"}
+  FEES -->|"No"| WAIT["Wait for fees<br/>Company credit stays untouched"]
+  WAIT --> NEXT
+  FEES -->|"Yes"| QUOTE["Use contract fees or journaled withdrawn inventory<br/>Quote direct USDT / wrapped-WBT pool<br/>Swap at most 10 test USDT per cycle"]
+  QUOTE --> ECON{"Liquid pool and<br/>economic output?"}
+  ECON -->|"No"| RETAIN["Retain fees; no new withdrawal"]
+  RETAIN --> NEXT
+  ECON -->|"Yes"| WITHDRAW["If needed: owner withdraws earned fees<br/>Owner pays execution gas"]
+  WITHDRAW --> APPROVE["Approve only the swap amount<br/>Reset a nonzero mismatched allowance first"]
+  APPROVE --> SWAP["Refresh quote and submit atomic swap + unwrap<br/>0.5% slippage · 2-minute deadline"]
+  SWAP --> REL["Native WBT delivered to relayer wallet<br/>Relayer can keep submitting company payments"]
+  REL --> NEXT
+  SWAP -.-> J["SAFETY THROUGHOUT THE CYCLE<br/>Save signed bytes before broadcast<br/>Unknown / pending broadcasts keep original bytes<br/>Repeated reverts pause the cycle"]
+  classDef bank fill:#e7f2e9,stroke:#527c63,color:#173f2b
+  classDef warn fill:#fff3d8,stroke:#b18b3d,color:#594315
+  class FEES,WITHDRAW,APPROVE,SWAP,REL bank
+  class WAIT,RETAIN,J warn

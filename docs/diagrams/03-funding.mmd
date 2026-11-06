@@ -1,0 +1,20 @@
+flowchart TB
+  INVENTORY["Before checkout<br/>Business prefunds the company contract<br/>with test USDT"]
+  CHECKOUT["Founder completes INR 500<br/>Razorpay sandbox checkout"] --> HOOK["payment.captured webhook<br/>Verify HMAC over raw request body"]
+  HOOK --> API["Confirm payment through Razorpay API<br/>Captured + correct order, amount and currency"]
+  API --> VALID{"Valid captured payment?"}
+  VALID -->|"No"| STOP["Reject<br/>No company credit"]
+  VALID -->|"Yes"| JOB["Queue TopUp by order ID<br/>Duplicate callbacks cannot create a second credit"]
+  JOB --> SIG["Attester signs TopUp<br/>Payment ID + amount + deadline"]
+  SIG --> REL["Save signed transaction before broadcast<br/>Relayer submits and pays WBT gas"]
+  REL --> CONTRACT["EnsWhiteCompany.topUp<br/>Check attester, replay, deadline<br/>and available prefunded inventory"]
+  INVENTORY --> CONTRACT
+  CONTRACT --> CREDIT["Record 5 test USDT of company credit<br/>No minting and no fiat conversion"]
+  CREDIT --> APPROVE["Founder approves allocations<br/>Finance signs the allocation authorizations"]
+  APPROVE --> CAPS["Backend checks live ENS identities<br/>and remaining weekly allocation caps"]
+  CAPS --> ALLOCATE["Relayer submits allocateBySig<br/>Contract verifies Finance and transfers USDT"]
+  ALLOCATE --> M["Marketing<br/>60% proposal: 3 test USDT"]
+  ALLOCATE --> S["Support<br/>30% proposal: 1.5 test USDT"]
+  ALLOCATE --> F["Finance<br/>10% proposal: 0.5 test USDT"]
+  classDef bank fill:#e7f2e9,stroke:#527c63,color:#173f2b
+  class INVENTORY,CONTRACT,CREDIT,ALLOCATE,M,S,F bank

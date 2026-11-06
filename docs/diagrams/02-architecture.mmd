@@ -1,0 +1,46 @@
+flowchart TB
+  F["Founder browser<br/>Mission, approvals, budget and books"]
+  RP["Razorpay TEST mode<br/>Sandbox checkout + captured webhook"]
+  subgraph APP["OFFCHAIN · EnsWhite backend · Node.js / Express"]
+    API["Company API + mission planner<br/>Authentication, webhook verification<br/>Deterministic budget and approval checks"]
+    KEYS["Backend signers<br/>Finance: allocations and ENS budgets<br/>Departments: EIP-3009 and own status<br/>Attester: TopUp and ENS policy"]
+    DB[("SQLite<br/>Budgets, tasks, approvals<br/>Encrypted keys + signed-tx journals")]
+    REL["Relayer / custom facilitator<br/>Submits saved transactions; pays WBT"]
+    API --> KEYS
+    KEYS --> REL
+    API <--> DB
+    REL <--> DB
+  end
+  subgraph ENS["ETHEREUM SEPOLIA · chain 11155111"]
+    DIR["EnsWhiteNames + registries + Universal Resolver<br/>Company, employees, vendors and employment expiry"]
+    REC["Separate Permissioned Resolvers<br/>Wallets, budgets, vendor allowlists and endpoints"]
+    DIR --> REC
+  end
+  subgraph WC["WHITECHAIN SEPOLIA · chain 1874"]
+    BANK["EnsWhiteCompany<br/>Credit, allocations, signature checks<br/>Spending limits + Paid events"]
+    BAL["Department USDT balances<br/>Zero WBT needed for payments"]
+    VENDOR["Independent vendor wallets<br/>99% of each gross payment"]
+    FEE["Earned company fees<br/>1% of each gross payment"]
+    BANK -->|"allocate USDT"| BAL
+    BAL -->|"authorized USDT receipt"| BANK
+    BANK -->|"net USDT"| VENDOR
+    BANK --> FEE
+  end
+  VS["Independent vendor servers<br/>HTTP 402 → verify chain receipt → deliver work"]
+  GW["Separate owner gas watcher<br/>Calls YetiTrade on Whitechain<br/>Owner pays execution gas"]
+  F --> API
+  F -->|"owner wallet: hire / fire / renew"| DIR
+  RP --> API
+  API -.->|"fresh identity and policy reads"| DIR
+  KEYS -->|"saved ENS queue; Sepolia ETH for edits"| REC
+  REL -->|"Whitechain transaction"| BANK
+  API <-->|"custom x402 request / response"| VS
+  VS -.->|"independent receipt verification"| BANK
+  VS -->|"delivered work"| API
+  API -.->|"events for books"| BANK
+  FEE -->|"owner-only withdrawal"| GW
+  GW -->|"swap + unwrap to relayer WBT wallet"| REL
+  classDef ens fill:#e9f0fd,stroke:#6681b3,color:#172e50
+  classDef bank fill:#e7f2e9,stroke:#527c63,color:#173f2b
+  class DIR,REC ens
+  class BANK,BAL,VENDOR,FEE bank
