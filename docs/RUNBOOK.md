@@ -1,6 +1,6 @@
 # Operator runbook
 
-See [the product overview](../README.md) for guest access, current implementation status and screenshots. The original setup and transaction history are preserved below. Use `setup-agent-discovery.ps1` for the new discovery migration; do not rerun the original bootstrap after migration.
+See [the product overview](../README.md) for guest access, current implementation status and screenshots. The original setup and transaction history are preserved below. The old allocation split and planner descriptions are historical; current task-based Finance and employee execution are documented in [EMPLOYEE-RUNTIME.md](EMPLOYEE-RUNTIME.md). Use `setup-agent-discovery.ps1` for the new discovery migration; do not rerun the original bootstrap after migration.
 
 # EnsWhite
 

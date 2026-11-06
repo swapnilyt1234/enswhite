@@ -12,7 +12,7 @@ OPENAI_MODEL=your-supported-model-id
 OPENAI_API_KEY=your-local-key
 ```
 
-The private launcher loads this file. OpenAI Responses planning and copy/FAQ generation use the key. The SVG renderer uses the delivered headline. An unavailable model falls back to deterministic content; the header shows offline mode. Guest environments never inherit the key. Do not commit `.env.company`.
+The private launcher loads this file. OpenAI Responses planning and copy/FAQ generation use the key. The SVG renderer uses the delivered headline. A model failure pauses the run or vendor delivery explicitly; no offline substitute is presented as successful AI work. Guest environments never inherit the key. Do not commit `.env.company`.
 
 ## ENS discovery migration
 
@@ -43,7 +43,7 @@ Forwarding back to 3004 restores the private entry point if needed. After discov
 
 Business profile → sandbox top-up → allocations → mission → Agent Desk → banner approval → Campaign Kit download → Live Proof and vendor earnings. Shortages create Finance requests; they wait if company credit is absent. If funded, Finance explains its decision, makes a scoped ENS budget change when needed, then signs an allocation. The Desk shows both confirmed transaction links.
 
-Browser-wallet Hire/Fire still needs an operator smoke test. Live terminal firing, expiry and restoration were demonstrated previously. Feedback and recording remain deferred at the user's request.
+Browser-wallet Hire/Fire still needs an operator smoke test. Live terminal firing, expiry and restoration were demonstrated previously. The feedback file is now included; recording remains deferred.
 
 ## Docker—public service only
 

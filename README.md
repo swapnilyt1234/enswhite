@@ -4,15 +4,19 @@
 
 [Guest company](https://zoning-playhouse-banister.ngrok-free.dev/) · [Live Proof](https://zoning-playhouse-banister.ngrok-free.dev/proof/) · [Founder workspace](https://zoning-playhouse-banister.ngrok-free.dev/owner/) · [Architecture diagrams](docs/project-flow.md)
 
-Public routes require `start-judge.ps1` running and the tunnel forwarded to **3006**. Private company/vendor services remain on **3004 / 4001–4003**. See [activation](docs/ACTIVATION.md). The temporary tunnel depends on the operator's machine staying online. Demo recording and sponsor feedback are deferred.
+Public routes require `start-judge.ps1` running and the tunnel forwarded to **3006**. Private company/vendor services remain on **3004 / 4001–4003**. See [activation](docs/ACTIVATION.md). The temporary tunnel depends on the operator's machine staying online. Demo recording remains deferred.
 
-A founder describes their business and gives a mission. Marketing commissions copy, passes the delivered headline to a banner designer and assembles a Campaign Kit. Support commissions customer help. Finance checks spending, requests scoped ENS budget changes when necessary and reconciles receipts. Above-threshold purchases wait for the founder.
+A founder describes their business and gives a mission. Marketing, Support and Finance run persisted, role-specific tool loops with memory and structured handoffs. Marketing commissions copy, passes the delivered text and brand to design, and owns the Campaign Kit. Support uses founder-supplied product/shipping/return facts. Finance proposes task-based allocations for approval and reconciles actual receipts. Models never receive keys or unrestricted transaction tools.
+
+[Employee runtime, sample tool trace and local commands](docs/EMPLOYEE-RUNTIME.md) · [Completed offline Kit](https://zoning-playhouse-banister.ngrok-free.dev/sample-kit.html) · [Whitechain feedback](WHITECHAIN_FEEDBACK.md)
+
+Private model mode fails explicitly on an API error; it does not disguise an offline substitute as AI work. Guest sessions execute the same bounded tool interface offline and label that source. Eight tool calls and twelve API attempts per assignment bound execution. A real paid-model run remains unverified because local API configuration was deferred by the user.
 
 **Sandbox fiat; real testnet settlement.** ₹500 in Razorpay test mode credits 5 test USDT from a prefunded company contract. This is a fixed demo allocation, not fiat conversion. Guest companies use isolated simulations and offline content; authenticated founders can configure OpenAI planning/content locally. Test USDT has no real monetary value.
 
 | Company workspace | Campaign Kit—local simulation | Live Proof—real testnets |
 |---|---|---|
-| ![Company workspace](docs/images/relay-company.png) | ![Delivered Campaign Kit](docs/images/campaign-kit.png) | ![Live ENS identities and Whitechain receipts](docs/images/live-proof.png) |
+| ![Executed employee tools](docs/images/agent-runtime.png) | ![Delivered Campaign Kit](docs/images/runtime-kit.png) | ![Live ENS identities and Whitechain receipts](docs/images/live-proof.png) |
 
 ## For Whitechain judges
 
