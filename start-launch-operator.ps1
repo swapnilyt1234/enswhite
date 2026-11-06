@@ -3,7 +3,7 @@ Set-Location -LiteralPath $PSScriptRoot
 Write-Host 'Private real-company launcher: Sepolia ENSv2 names/hires/ERC-8004/ENSIP-25/26 and a separate Whitechain payment contract for each visitor.'
 Write-Host 'Policy: at most two new companies per UTC day; 0.02 test Sepolia ETH, 0.1 WBT and 10 test USDT total daily spending reservations. Each company receives at most 5 test USDT in its uncredited pool, 0.02 WBT in its own relayer and 0.001 Sepolia ETH per hired department/reviewer. Fees count toward daily native budgets.'
 Write-Host 'Whitechain deployment maximum execution fee: 0.03 WBT; other Whitechain calls: 0.02 WBT each. All calls and gas funding still share the 0.1 WBT daily total.'
-Write-Host 'The founder still pays through Razorpay TEST checkout before the contract credits a budget. A cookie limits one company per browser visitor; the daily operator budget limits abuse across new cookies.'
+Write-Host 'The founder still pays through Razorpay TEST checkout before the contract credits a budget. A visitor can create and switch between isolated companies; the shared daily operator budget limits all launches, including new cookies.'
 Write-Host 'Stop the employee manager and every other OWNER signer on both chains. Keep the company server and public gateway running. This worker receives no Razorpay or model secrets.'
 $previousPassword=$env:OWNER_PASSWORD;$previousOrigin=$env:APP_ORIGIN
 try{

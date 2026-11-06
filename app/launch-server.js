@@ -11,7 +11,9 @@ export function createLaunchGateway(origin,{store=createLaunchStore(),companyFac
  router.use(express.json({limit:'4kb'}));
  router.use((req,res,next)=>{res.set('Cache-Control','no-store');if(req.method!=='GET'&&req.get('origin')!==origin)return res.status(403).json({error:'Invalid origin'});next()});
  router.post('/api/session',(req,res)=>{const token=store.visitor(cookie(req));res.setHeader('Set-Cookie',`enswhite_launch=${token}; Path=/; HttpOnly; SameSite=Strict${secure}`);res.json({started:true})});
- router.get('/api/state',(req,res)=>res.json({job:cookie(req)?store.job(cookie(req)):null,operatorReady:store.ready(),policy:{companiesPerDay:2,missionsPerCompany:5,fiat:'Razorpay test mode; no real conversion'}}));
+ router.get('/api/state',(req,res)=>res.json({job:cookie(req)?store.job(cookie(req)):null,companies:cookie(req)?store.companies(cookie(req)):[],operatorReady:store.ready(),policy:{companiesPerDay:2,missionsPerCompany:5,fiat:'Razorpay test mode; no real conversion'}}));
+ router.post('/api/new',(req,res)=>res.json(store.newCompany(cookie(req)||'')));
+ router.post('/api/select',(req,res)=>res.json(store.select(cookie(req)||'',req.body.id)));
  router.post('/api/business',(req,res)=>res.status(202).json(store.create(cookie(req)||'',req.body)));
  router.post('/api/hire',(req,res)=>res.status(202).json(store.hire(cookie(req)||'',req.body.roles)));
  router.get('/profiles/:id/:label',async(req,res)=>{const row=store.db.prepare("SELECT config FROM launches WHERE id=? AND state='ready'").get(req.params.id);if(!row)return res.sendStatus(404);const config=JSON.parse(await readFile(row.config,'utf8')),entries=JSON.parse(await readFile(config.ENS_IDENTITY_FILE,'utf8')),entry=entries.find(x=>x.label===req.params.label);entry?res.json(entry.registration):res.sendStatus(404)});

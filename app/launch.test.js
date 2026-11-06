@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdtempSync,rmSync,writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {createLaunchStore} from './launch-store.js';
+import {createLaunchStore,visitorHash} from './launch-store.js';
 import {createProvisionSender} from './provision-sender.js';
 import {Wallet,keccak256} from 'ethers';
 import {createServer,request} from 'node:http';
@@ -14,8 +14,20 @@ import {baseApp} from './http.js';
 test('launches are isolated per visitor, idempotent, role-scoped and globally budgeted',t=>{
  const directory=mkdtempSync(join(tmpdir(),'enswhite-launch-')),store=createLaunchStore(directory);t.after(()=>{store.close();rmSync(directory,{recursive:true,force:true})});
  const a=store.visitor(),b=store.visitor(),c=store.visitor(),input={name:'Candle shop',description:'Handmade candles',label:'candles'};
- const first=store.create(a,input);assert.equal(store.job(b),null);assert.equal(store.create(a,input).id,first.id);assert.throws(()=>store.create(a,{...input,label:'another'}),/One company/);assert.throws(()=>store.hire(a,['marketing']),/Finance/);store.hire(a,['finance','marketing']);assert.throws(()=>store.hire(a,['finance','support']),/already saved/);
+ const first=store.create(a,input);assert.equal(store.job(b),null);assert.equal(store.create(a,input).id,first.id);assert.throws(()=>store.create(a,{...input,label:'another'}),/Create another company/);assert.throws(()=>store.hire(a,['marketing']),/Finance/);store.hire(a,['finance','marketing']);assert.throws(()=>store.hire(a,['finance','support']),/already saved/);
  store.create(b,{...input,label:'second'});assert.throws(()=>store.create(c,{...input,label:'third'}),/Daily operator/);assert(!JSON.stringify(store.job(a)).includes('raw'));
+});
+
+test('legacy visitors keep their company and can create and switch workspaces without exposing another visitor',t=>{
+ const directory=mkdtempSync(join(tmpdir(),'enswhite-launch-'));let store=createLaunchStore(directory);t.after(()=>{store.close();rmSync(directory,{recursive:true,force:true})});
+ const token=store.visitor(),stranger=store.visitor(),id='legacy-company';
+ store.db.prepare("INSERT INTO launches VALUES(?,?,?,?,?,NULL,'ready',NULL,NULL,?)").run(id,visitorHash(token),'legacy','Legacy business','Existing company',Date.now());
+ store.close();store=createLaunchStore(directory);assert.equal(store.job(token).id,id);assert.equal(store.companies(token).length,1);assert.equal(store.companies(stranger).length,0);
+ store.newCompany(token);assert.equal(store.job(token),null);assert.equal(store.companies(token)[0].id,id);
+ const second=store.create(token,{name:'New business',description:'Chosen during onboarding',label:'new-business'});assert.notEqual(second.id,id);assert.equal(store.companies(token).length,2);assert.throws(()=>store.newCompany(token),/Finish/);assert.throws(()=>store.select(stranger,second.id),/not found/);
+ store.db.prepare("UPDATE launches SET state='ready' WHERE id=?").run(second.id);assert.equal(store.select(token,id).id,id);assert.equal(store.select(token,second.id).id,second.id);
+ store.close();store=createLaunchStore(directory);assert.equal(store.job(token).id,second.id,'Restart keeps the selected company');
+ store.newCompany(token);assert.throws(()=>store.create(token,{name:'Third',description:'Over the daily limit',label:'third'}),/Daily operator/);assert.equal(store.companies(token).length,2);
 });
 
 test('visitor cookies select only their company and internal founder sessions never reach the browser',async t=>{
