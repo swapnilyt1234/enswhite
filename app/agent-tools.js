@@ -8,7 +8,7 @@ export function createAgentTools({db,store,service,activity}){
  const tasks=run=>db.prepare('SELECT id,vendor,state,result,amount FROM company_tasks WHERE mission_id=?').all(run.mission_id).map(x=>({...x,result:x.result?JSON.parse(x.result):null}));
  const waiting=(state,message)=>({waiting:true,state,message});
  return{
-  authorize:run=>service.assertEmployee(run.department),
+  async authorize(run){try{return await service.assertEmployee(run.department)}catch(error){throw new Error(/fired or expired/i.test(error.message)?'Employee is fired or expired. Work was not initiated.':'Employee identity could not be verified. Work was not initiated.')}},
   async execute(run,name,args){
    const definition=EMPLOYEES[run.department]?.tools.find(x=>x.name===name);if(!definition)refuse('This employee cannot use that tool.');validateArguments(definition.parameters,args);await service.assertEmployee(run.department);
    if(name==='read_context')return service.agentContext(run);
@@ -23,10 +23,10 @@ export function createAgentTools({db,store,service,activity}){
     const result={reviewed:true,missing:faq.questions.filter(x=>x.missing).map(x=>x.source),note:'Answers use saved founder policy sources. Missing facts are not invented; translation remains a draft for founder review.'};return save(run,'faq_review',result);
    }
    if(name==='request_quote'){
-    const profile=(await service.agentContext(run)).business;let brief;
+    const context=await service.agentContext(run),profile=context.business;let brief;
     if(run.department==='marketing'){
      const campaign=artifact(run,'campaign_brief');if(!campaign)refuse('Create the campaign brief first.');
-     brief=`Business: ${profile.name}\nProduct: ${profile.productName||profile.name}\nOffer: ${profile.description}\nAudience: ${campaign.audience}\nMission: ${(await service.agentContext(run)).mission}\nBrand colours: ${profile.brandColours||'#163b32,#cee2ae'}\n${args.brief}`;
+     brief=`Business: ${profile.name}\nProduct: ${profile.productName||profile.name}\nOffer: ${profile.description}\nAudience: ${campaign.audience}\nMission: ${context.mission}\nBrand colours: ${profile.brandColours||'#163b32,#cee2ae'}\n${args.brief}`;
      if(args.vendor==='pixelpress'){
       const copy=tasks(run).find(x=>x.vendor==='copydesk'&&x.state==='delivered');if(!copy)return waiting('delivery','I am waiting for CopyDesk’s paid delivery before briefing design.');
       const headline=copy.result.content.split('\n').find(x=>x.trim())?.replace(/^#+\s*/,'').slice(0,100);if(!headline)refuse('CopyDesk delivery has no usable headline.');
@@ -34,7 +34,7 @@ export function createAgentTools({db,store,service,activity}){
      }
     }else{
      const faq=artifact(run,'faq'),review=artifact(run,'faq_review');if(!faq||!review)refuse('Draft and review the factual FAQ before requesting translation.');
-     brief=`Translate this sourced customer FAQ into ${profile.language}. Do not add facts, dates or promises. Preserve all missing-policy warnings.\nBusiness: ${profile.name}\nMission: ${(await service.agentContext(run)).mission}\nFounder-sourced FAQ:\n${faq.questions.map(x=>`Q: ${x.question}\nA: ${x.answer}`).join('\n\n')}`;
+     brief=`Translate this sourced customer FAQ into ${profile.language}. Do not add facts, dates or promises. Preserve all missing-policy warnings.\nBusiness: ${profile.name}\nMission: ${context.mission}\nFounder-sourced FAQ:\n${faq.questions.map(x=>`Q: ${x.question}\nA: ${x.answer}`).join('\n\n')}`;
     }
     if(brief.length>8000)refuse('The source brief is too long; shorten the company profile or campaign instructions.');
     const prior=db.prepare('SELECT * FROM agent_quotes WHERE mission_id=? AND vendor=?').get(run.mission_id,args.vendor);

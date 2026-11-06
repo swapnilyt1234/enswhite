@@ -38,3 +38,7 @@ test('interrupted tools resume from persisted inputs without another model call'
 test('offline execution is bounded and never labeled as a model response',async t=>{
  const {store,runtime}=setup(t);const id=store.ensure('m','marketing','offline');await runtime.tick();assert.equal(store.run(id).calls,8);assert.equal(store.run(id).state,'failed');assert.equal(store.run(id).source,'offline');
 });
+test('a crash after the verified submission result does not require another model call',async t=>{
+ const {db,store}=setup(t);const id=store.ensure('m','marketing','llm');store.checkpoint(id,{state:'executing',calls:8});db.prepare("INSERT INTO agent_actions VALUES(?,?,?,?,?,'done',?)").run(id,'final','submit_work','{"summary":"Done"}','{"complete":true,"summary":"Done"}',Date.now());
+ const runtime=createAgentRuntime({db,store,activity:createActivity(db),env:{},context:async()=>{},observe:async()=>'',offline:()=>{},tools:{authorize:async()=>{},execute:async()=>{throw new Error('must not execute')}},modelFetch:async()=>{throw new Error('must not call')}});await runtime.tick();assert.equal(store.run(id).state,'completed');assert.equal(store.run(id).attempts,0);
+});

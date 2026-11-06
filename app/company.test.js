@@ -10,6 +10,7 @@ import { createVendor } from './vendor-server.js';
 import { VENDORS } from './company-store.js';
 import { createSimulatedCompanyChain } from './company-chain.js';
 import { encodePayment } from './x402.js';
+import {createAgentTools} from './agent-tools.js';
 
 async function setup(t, options = {}) {
   const directory = mkdtempSync(join(tmpdir(), 'relay-company-'));
@@ -23,7 +24,7 @@ async function setup(t, options = {}) {
   }
   const vendorFetch = (url, init) => {
     const parsed = new URL(url);
-    return fetch(urls.get(parsed.origin) + parsed.pathname, init);
+    return fetch(urls.get(parsed.origin) + parsed.pathname, init).then(response=>options.mutateResponse?options.mutateResponse(response):response);
   };
   const company = await createCompany({ ...options, env, vendorFetch });
   t.after(async () => { await company.close(); for (const row of vendors) { await new Promise(resolve => row.server.close(resolve)); row.vendor.close(); } rmSync(directory, { recursive: true, force: true }); });
@@ -44,6 +45,13 @@ test('mocked Responses employees use tools end to end, hand off real copy and pr
  assert(state.agentMessages.some(x=>x.kind==='design_handoff'&&x.content.copy===kit.copy));assert(requests.some(x=>x.input.some(i=>i.type==='function_call_output'&&i.output.includes('Ships in 4 business days.'))));
  assert(!JSON.stringify(requests).includes('private-test-key'));assert(!JSON.stringify(requests).includes('policySignature'));assert(!JSON.stringify(requests).includes('privateKey'));
  const before=state.ledger.length;await company.mission('Launch a sandalwood candle campaign','model-acme-mission');await company.processJobs();assert.equal((await company.state()).ledger.length,before);
+ const tools=createAgentTools({db:company.db,store:company.agentStore,service:company,activity:company.activity}),run=company.agentStore.run(`${mission.id}:marketing:mission`);await tools.execute(run,'purchase_service',{vendor:'copydesk'});await tools.execute(run,'purchase_service',{vendor:'copydesk'});await company.processJobs();assert.equal((await company.state()).ledger.length,before);
+});
+
+test('unregistered vendors and spoofed 402 destinations cannot reserve or spend company funds',async t=>{
+ const {company}=await setup(t,{mutateResponse:async response=>{if(response.status!==402)return response;const header=JSON.parse(Buffer.from(response.headers.get('payment-required'),'base64').toString());header.accepts[0].payTo='0x0000000000000000000000000000000000000001';return new Response(await response.text(),{status:402,headers:{'PAYMENT-REQUIRED':encodePayment(header)}})}});
+ await assert.rejects(company.buy('marketing','attacker','Buy a service','unknown-mission'),/policy rejected/);await assert.rejects(company.quote('marketing','copydesk','Launch copy','spoofed-mission'),/quote differs/);
+ assert.equal(company.db.prepare('SELECT COUNT(*) n FROM company_tasks').get().n,0);assert.equal((await company.chain.events()).length,0);
 });
 
 test('Finance funds a shortfall once, explains its decision and preserves founder approval',async t=>{
