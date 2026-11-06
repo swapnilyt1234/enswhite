@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { planMission, modelText } from './agents.js';
+import { planMission, modelText, vendorWork } from './agents.js';
 
 test('model vendor proposals cannot override department, address, price or tool permissions', async t => {
   let calls = 0;
@@ -23,4 +23,10 @@ test('model outage returns labeled fallback without interrupting payment-indepen
   const result=await modelText('instructions','brief','seeded content',{AGENT_MODE:'llm',OPENAI_API_KEY:'test-key',OPENAI_MODEL:'test-model'});
   assert.equal(result.text,'seeded content');
   assert(result.source.includes('fallback'));
+});
+
+test('translation fallback honors a Marathi brief without a model key',async()=>{
+  const result=await vendorWork('lingualink','Create a Marathi customer FAQ',{});
+  assert(result.content.includes('मी ऑर्डर कशी देऊ'));
+  assert.equal(result.source,'seeded fallback');
 });

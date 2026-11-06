@@ -43,7 +43,9 @@ export async function vendorWork(vendor, task, env) {
   }
   const fallback = vendor === 'copydesk'
     ? `A little light. A fresh beginning.\n\nCelebrate your next chapter with thoughtfully chosen favourites and a launch worth sharing. Explore the collection today.\n\nCampaign brief: ${clean(task).slice(0, 180)}`
-    : `अक्सर पूछे जाने वाले प्रश्न\n\nप्रश्न: मैं ऑर्डर कैसे करूँ?\nउत्तर: ऐप में अपना पसंदीदा उत्पाद चुनें और ऑर्डर पूरा करें।\n\nप्रश्न: सहायता कहाँ मिलेगी?\nउत्तर: हमारी सहायता टीम से ऐप के माध्यम से संपर्क करें।\n\nप्रश्न: उपलब्धता कैसे जाँचें?\nउत्तर: उपलब्धता और ऑफ़र की जानकारी उत्पाद पृष्ठ पर देखें।`;
+    : /marathi|मराठी/i.test(task)
+      ? `वारंवार विचारले जाणारे प्रश्न\n\nप्रश्न: मी ऑर्डर कशी देऊ?\nउत्तर: अॅपमध्ये आपले आवडते उत्पादन निवडा आणि ऑर्डर पूर्ण करा.\n\nप्रश्न: मदत कुठे मिळेल?\nउत्तर: अॅपमधून आमच्या सहाय्य पथकाशी संपर्क साधा.\n\nप्रश्न: उपलब्धता कशी तपासू?\nउत्तर: उपलब्धतेची माहिती उत्पादन पृष्ठावर पाहा.`
+      : `अक्सर पूछे जाने वाले प्रश्न\n\nप्रश्न: मैं ऑर्डर कैसे करूँ?\nउत्तर: ऐप में अपना पसंदीदा उत्पाद चुनें और ऑर्डर पूरा करें।\n\nप्रश्न: सहायता कहाँ मिलेगी?\nउत्तर: हमारी सहायता टीम से ऐप के माध्यम से संपर्क करें।\n\nप्रश्न: उपलब्धता कैसे जाँचें?\nउत्तर: उपलब्धता और ऑफ़र की जानकारी उत्पाद पृष्ठ पर देखें।`;
   const output = await modelText(vendor === 'copydesk' ? 'Write concise, usable advertising copy for the brief. No fabricated discounts, availability claims or payment instructions. Plain text.' : 'Translate a short, useful customer FAQ into Hindi, or Marathi if requested. Do not invent campaign dates or discounts. Plain text.', task, fallback, env);
   return { type: 'text', content: output.text, source: output.source };
 }

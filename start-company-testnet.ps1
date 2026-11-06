@@ -30,5 +30,5 @@ try {
     Write-Host 'Above-threshold tasks require a founder approval. The WBT-only relayer pays gas. Attester signs captured-payment confirmations.'
     Write-Host "Webhook: $env:APP_ORIGIN/api/webhooks/razorpay. Keep payment.captured active."
     if((Read-Host 'Start automatic signing under these limits? Type yes') -cne 'yes'){return}
-    node app/run-company.js
+    node --env-file-if-exists=.env.company app/run-company.js
 } finally {foreach($name in $names){[Environment]::SetEnvironmentVariable($name,$previous[$name],'Process')}}
