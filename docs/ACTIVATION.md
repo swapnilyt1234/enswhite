@@ -25,6 +25,8 @@ The private launcher loads this file. OpenAI Responses planning and copy/FAQ gen
 
 Sepolia only: owner fees at most 0.005 test ETH per transaction; department transactions at most 0.0005 each. Contract deployments permit at most 20 million total gas; other calls remain limited to 8 million. Department wallets need Sepolia ETH. The script prints public transaction links and writes sanitized manifests under `docs/deployments`.
 
+Record calls include 20% gas headroom within the existing caps. If a discovery record edit has a confirmed reverted receipt, resuming can re-estimate the identical edit into at most two `.retry-N.json` journals. The original journal is preserved. Successful steps are skipped; pending/unknown transactions and reverted deployments or registrations are never automatically replaced. This recovers the observed Support binding failure without registering another identity.
+
 The live controller deployment was estimated at 18,459,191 gas and failed bounded simulation at 16 million. Sepolia's [Glamsterdam upgrade](https://blog.ethereum.org/2026/09/17/glamsterdam-testnet-announcement) changed state-creation gas accounting; [EIP-8037](https://eips.ethereum.org/EIPS/eip-8037) separately meters state gas beyond the execution cap. The local deployment allowance is calibrated to that observed total; maximum ETH fees, network checks and balance checks remain unchanged.
 
 The new controller permits founder edits only to discovery keys through `setAgentMetadata`; employee status and Finance budget scopes remain separate. Verification checks NFT ownership, agent wallet, current ENS ownership, ENS consent and registration metadata. Missing or mismatched identities show unverified. No MCP/A2A, reputation or validation claims are invented.

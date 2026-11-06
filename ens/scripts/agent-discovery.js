@@ -6,7 +6,8 @@ import {createConnection} from 'node:net';
 import {Contract,ContractFactory,Wallet,JsonRpcProvider,FetchRequest,dnsEncode,keccak256,toUtf8Bytes,getAddress} from 'ethers';
 import {openStore} from '../../app/payments.js';
 import {walletStore} from '../../app/company-store.js';
-import {createENSDirectory,checkENSTransaction,populateENSTransaction} from '../../app/ens.js';
+import {createENSDirectory} from '../../app/ens.js';
+import {sendDiscoveryTransaction} from '../../app/ens-discovery-send.js';
 import {IDENTITY_REGISTRY,AGENT_ABI,registrationKey,agentRegistration,registrationURI} from '../../app/agent-identity.js';
 
 const dir=resolve('data/ens/agent-discovery-v1'),runtimeFile=resolve('data/ens/runtime.json');
@@ -35,19 +36,7 @@ try{
  for(const table of ['ens_writes','company_jobs'])if(store.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(table)&&store.db.prepare(`SELECT COUNT(*) n FROM ${table} WHERE state IN ('queued','submitted')`).get().n)throw new Error('Outstanding signing jobs exist. Restart the company, let them settle, then stop it before migration. Do not delete signed journals.');
  if(store.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='company_budget_requests'").get()&&store.db.prepare("SELECT COUNT(*) n FROM company_budget_requests WHERE state IN ('ens','allocating')").get().n)throw new Error('Finish the in-progress Finance request before migration.');
  for(const employee of plan.employees){if(!store.db.prepare('SELECT address FROM company_wallets WHERE name=?').get(employee.label)||getWallet(employee.label,'department').address!==employee.wallet)throw new Error('Existing department wallet differs from ENS employee');}
- async function send(id,signer,transaction){
-  const file=join(dir,id+'.json');let saved;
-  if(existsSync(file))saved=JSON.parse(await readFile(file,'utf8'));
-  else{
-   const tx=await populateENSTransaction(signer,{...transaction,chainId:11155111});checkENSTransaction(tx,await provider.getBalance(signer.address));
-   if(signer.address!==owner.address&&BigInt(tx.gasLimit)*BigInt(tx.maxFeePerGas??tx.gasPrice)>500_000_000_000_000n)throw new Error('Department identity transaction exceeds 0.0005 test ETH fee cap');
-   const raw=await signer.signTransaction(tx);saved={raw,hash:keccak256(raw)};await writeFile(file,JSON.stringify(saved),{flag:'wx',mode:0o600});
-  }
-  let receipt=await provider.getTransactionReceipt(saved.hash);
-  if(!receipt){try{await provider.broadcastTransaction(saved.raw)}catch{if(!await provider.getTransaction(saved.hash))throw new Error('Unknown broadcast; saved signed bytes retained')};receipt=await provider.waitForTransaction(saved.hash,1,30000)}
-  if(!receipt||receipt.status!==1)throw new Error(`Step ${id} pending or reverted: ${saved.hash}. Resume this same script; do not delete its journal.`);
-  console.log(`${id}: https://sepolia.etherscan.io/tx/${saved.hash}`);return receipt;
- }
+ const send=(id,signer,transaction)=>sendDiscoveryTransaction(dir,provider,owner.address,id,signer,transaction);
  const originalNames=new Contract(plan.runtime.ENS_NAMES_ADDRESS,['function factory() view returns(address)','function registryImplementation() view returns(address)','function resolverImplementation() view returns(address)'],provider);
  const artifact=JSON.parse(await readFile('ens/out/EnsWhiteNames.sol/EnsWhiteNames.json','utf8'));
  const factory=new ContractFactory(artifact.abi,artifact.bytecode.object,owner);
