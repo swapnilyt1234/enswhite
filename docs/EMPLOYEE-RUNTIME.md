@@ -12,6 +12,8 @@ The Responses request uses strict schemas, `parallel_tool_calls: false`, `store:
 
 An interrupted tool can replay through the same idempotent purchase path. A crash after a verified submission result can recover completion without another model request. A model's plain final message cannot complete an employee: `submit_work` must pass backend artifact/delivery checks. Exhausted or failed runs remain visible; retry uses the saved run and original payment identities.
 
+Model transport failures receive at most three consecutive attempts, each counted against the same twelve-request cap and invocation deadline. HTTP errors and invalid model outputs still stop explicitly. RPC transport failures inside tools preserve the unfinished function call instead of spending another model tool decision. Retrying a saved run can re-execute its last refused tool with identical arguments, call ID and order identity; employment and spending policies are rechecked. The previous refusal is retained in activity, and this does not raise the eight-tool cap. This handles the connection failures observed during the live November 7 testnet mission without purchasing CopyDesk twice.
+
 Authenticated routes: `GET /api/agent-runs`, `GET /api/agent-runs/:id`, `POST /api/agent-runs/:id/retry`, and the existing resumable `GET /api/activity/stream`. Founder-only proposal and approval routes are `POST /api/finance/proposal` and `POST /api/allocate` with `proposalId`.
 
 ## Actual sample execution

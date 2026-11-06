@@ -42,3 +42,29 @@ test('a crash after the verified submission result does not require another mode
  const {db,store}=setup(t);const id=store.ensure('m','marketing','llm');store.checkpoint(id,{state:'executing',calls:8});db.prepare("INSERT INTO agent_actions VALUES(?,?,?,?,?,'done',?)").run(id,'final','submit_work','{"summary":"Done"}','{"complete":true,"summary":"Done"}',Date.now());
  const runtime=createAgentRuntime({db,store,activity:createActivity(db),env:{},context:async()=>{},observe:async()=>'',offline:()=>{},tools:{authorize:async()=>{},execute:async()=>{throw new Error('must not execute')}},modelFetch:async()=>{throw new Error('must not call')}});await runtime.tick();assert.equal(store.run(id).state,'completed');assert.equal(store.run(id).attempts,0);
 });
+
+test('model transport retries stop after three failures and count every API attempt',async t=>{
+ let requests=0;const {store,runtime}=setup(t,{modelFetch:async()=>{requests++;throw Object.assign(new TypeError('fetch failed'),{cause:{code:'UND_ERR_CONNECT_TIMEOUT'}})}});
+ const id=store.ensure('transport','finance','llm');await runtime.tick();
+ assert.equal(requests,3);assert.equal(store.run(id).attempts,3);assert.equal(store.run(id).calls,0);assert.equal(store.run(id).state,'failed');assert.match(store.run(id).error,/UND_ERR_CONNECT_TIMEOUT/);
+});
+
+test('model transport recovery executes a returned tool only once',async t=>{
+ let requests=0,effects=0;const {store,runtime}=setup(t,{execute:async()=>{effects++;return{complete:true,summary:'Verified'}},modelFetch:async()=>{if(++requests<3)throw new TypeError('fetch failed');return new Response(JSON.stringify({output:[{type:'function_call',call_id:'once',name:'submit_work',arguments:'{"summary":"Verified"}'}]}))}});
+ const id=store.ensure('recover','marketing','llm');await runtime.tick();assert.equal(store.run(id).state,'completed');assert.equal(store.run(id).attempts,3);assert.equal(effects,1);
+});
+
+test('RPC tool failure preserves the pending identity and retries without another model decision',async t=>{
+ let effects=0,requests=0;const {store,runtime}=setup(t,{execute:async()=>{if(++effects===1)throw Object.assign(new Error('RPC timeout'),{code:'TIMEOUT'});return{complete:true,summary:'Same order recovered'}},modelFetch:async()=>{requests++;return new Response(JSON.stringify({output:[{type:'function_call',call_id:'order',name:'purchase_service',arguments:'{"vendor":"pixelpress"}'}]}))}});
+ const id=store.ensure('rpc','marketing','llm');await runtime.tick();assert.equal(store.run(id).state,'failed');assert.equal(store.actions(id)[0].state,'started');
+ runtime.retry(id);await runtime.tick();assert.equal(store.run(id).state,'completed');assert.equal(store.run(id).calls,1);assert.equal(requests,1);assert.equal(effects,2);assert.equal(store.actions(id).length,1);
+});
+
+test('a saved refused tool can recheck policy at the tool cap without erasing the refusal event',async t=>{
+ let effects=0,permitted=false;const {db,store,runtime}=setup(t,{authorize:async()=>{if(!permitted)throw new Error('Employee is fired or expired')},execute:async()=>{effects++;return{complete:true,summary:'Policy rechecked'}},modelFetch:async()=>{throw new Error('must not request model')}});
+ const id=store.ensure('legacy-refusal','marketing','llm');store.checkpoint(id,{state:'failed',calls:8,attempts:9,input:JSON.stringify([{type:'function_call',call_id:'saved',name:'purchase_service',arguments:'{"vendor":"pixelpress"}'},{type:'function_call_output',call_id:'saved',output:'{"error":"Tool refused"}'}])});
+ db.prepare("INSERT INTO agent_actions VALUES(?,?,?,?,?,'done',?)").run(id,'saved','purchase_service','{"vendor":"pixelpress"}','{"error":"Tool refused"}',Date.now());
+ runtime.retry(id);await runtime.tick();assert.equal(store.run(id).state,'failed');assert.equal(effects,0);
+ permitted=true;runtime.retry(id);await runtime.tick();assert.equal(store.run(id).state,'completed');assert.equal(store.run(id).calls,8);assert.equal(store.run(id).attempts,9);assert.equal(effects,1);
+ const events=db.prepare("SELECT data FROM company_activity WHERE kind='tool_retry'").all();assert(events.some(x=>JSON.parse(x.data).previousResult?.error==='Tool refused'));
+});
