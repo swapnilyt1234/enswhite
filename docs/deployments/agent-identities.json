@@ -1,1 +1,29 @@
-[]
+[
+  {
+    "label": "marketing",
+    "name": "marketing.acme.enswhite.eth",
+    "agentId": "11295",
+    "registry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+    "owner": "0x19763ddB900d7C02Eed1b4B8bDE6C26cDd8c8c00",
+    "registrationTransaction": "0x7a7b5d97609ca36b659a86282f4f61d80dd4ae62325adf7e038dc47210318a58",
+    "metadataTransaction": "0x8a216f3c117b0500c2b3ddc4d70c0a3410b906608a7035bc3647ec788dd1584c"
+  },
+  {
+    "label": "support",
+    "name": "support.acme.enswhite.eth",
+    "agentId": "11296",
+    "registry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+    "owner": "0x8185a737A3f00C5Fb53a9bf7EC1d703FE4450713",
+    "registrationTransaction": "0x1f6e78c647557f0f6faf4f41744c551ad66f8fa392561b9035234f39c539bf49",
+    "metadataTransaction": "0x6af59b8de564943b14b52067f3831b352019707fe838c940ba9843302a71ed59"
+  },
+  {
+    "label": "finance",
+    "name": "finance.acme.enswhite.eth",
+    "agentId": "11297",
+    "registry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+    "owner": "0x2Ddb644510DEB6AdC81E8cB440E7E80045458173",
+    "registrationTransaction": "0x94c7d7b2c19d339da9b68f127c4a7111bf733dc1898ae57624bb40809de56161",
+    "metadataTransaction": "0x3df0479b00601b7cf55b77ca56b48de7ec6fecbcc51d53c21350c58c429d33ee"
+  }
+]

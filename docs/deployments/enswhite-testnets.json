@@ -4,9 +4,9 @@
     "ENS_ENABLED": "true",
     "ENS_PARENT_NAME": "enswhite.eth",
     "ENS_COMPANY_NAME": "acme.enswhite.eth",
-    "ENS_COMPANY_REGISTRY": "0x06f16818c53B703c823f1da435a1aE90D054F5d7",
-    "ENS_REGISTRY_BLOCK": "12074999",
-    "ENS_NAMES_ADDRESS": "0xEA836Fd7E1179777039856c02b70A3328cD3C1f3",
+    "ENS_COMPANY_REGISTRY": "0x6eE8218dC98ee838a70E271d2781040649C8D1D4",
+    "ENS_REGISTRY_BLOCK": "12078228",
+    "ENS_NAMES_ADDRESS": "0x95555c8f27F72C3352698AFAC6867a408b9da352",
     "SEPOLIA_RPC_URL": "https://ethereum-sepolia-rpc.publicnode.com",
     "vendorRegistry": "0xC2C6F30c482B7e3e48CC135c60e981FcaA389d4a",
     "vendorRegistrar": "0xD36605397FaFefaAe2c3eBfA95af1c732A322B31",
@@ -128,7 +128,8 @@
         }
       ],
       "restoredStatusTransaction": "0x3a100e7080e1d83740e2fea5a85cfc4dccf9ce94caf495b3ef64686e5e159f9a"
-    }
+    },
+    "discoveryVersion": 1
   },
   "whitechain": {
     "chainId": 1874,

@@ -57,7 +57,7 @@ Public activation in this session was blocked by automatic execution review when
 - Real model connectivity and model-specific quality remain unverified until the user supplies local configuration. Offline FAQs preserve source facts and explicitly do not claim to have translated them.
 - Translation is a draft for founder review. Source checks and payment verification do not prove semantic quality.
 - The runtime intentionally supports three fixed employees and the complete commerce-launch workflow. It does not execute arbitrary code, unrestricted agent-to-agent payments, tax/payroll or treasury trading.
-- Existing ENS discovery setup is preserved. Its operator migration is still pending; this runtime task does not broadcast new identities, change the ENS pointer or redeploy Whitechain. Reputation feedback and validation services remain a later identity phase, as the final plan's implementation prompt specifies.
+- ENS discovery migration is now live and independently verified on Sepolia: Marketing 11295, Support 11296 and Finance 11297. ENSIP-25 consent, ERC-8004 ownership/wallet metadata and ENSIP-26 context/web records are configured. The company pointer now resolves to the replacement directory; Whitechain was not redeployed. See [deployment evidence](DISCOVERY-VERIFICATION.md). Reputation feedback and validation services remain a later identity phase.
 - Browser-wallet Hire/Fire, Docker runtime and permanent hosting are not newly validated here. The existing ngrok hostname remains a temporary operator-hosted origin.
 - GitHub About was updated through the authenticated owner session to: **EnsWhite: a business OS for AI employees with ENS identities, controlled Whitechain payments and verifiable business deliverables.**
 

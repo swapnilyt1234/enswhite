@@ -40,7 +40,7 @@ ENS is the live employment and policy authority. Before signing, the backend res
 
 This uses ENSv2 UserRegistries, expiring non-transferable employee badges and per-key Permissioned Resolver roles. Vendor registry revocation rights were removed, but the ancestor namespace owner retains its subregistry-pointer control. Cross-chain policy uses a trusted attester, not a trustless ENS bridge; already-signed policies may remain usable for up to 60 seconds after firing.
 
-[ENSIP-25](https://docs.ens.domains/ensip/25) and [ENSIP-26](https://docs.ens.domains/ensip/26) are draft discovery standards. Record support, current-owner verification and an [ERC-8004](https://eips.ethereum.org/EIPS/eip-8004) bootstrap are implemented and tested. **Discovery records/identities are not live until the operator completes `setup-agent-discovery.ps1`.** Existing payment identities work until the controlled directory cutover. Discovery is separate from payment permission and makes no reputation or validation claim.
+[ENSIP-25](https://docs.ens.domains/ensip/25) and [ENSIP-26](https://docs.ens.domains/ensip/26) are draft discovery standards. **Three [ERC-8004](https://eips.ethereum.org/EIPS/eip-8004) identities and their ENS bindings are live on Sepolia:** Marketing 11295, Support 11296 and Finance 11297. Current-owner/wallet verification and the replacement company-directory pointer were independently checked after migration; see [public deployment evidence](docs/DISCOVERY-VERIFICATION.md). Discovery is separate from payment permission and makes no reputation or validation claim. Published web records require the public services to be running.
 
 ## Run and verify
 
