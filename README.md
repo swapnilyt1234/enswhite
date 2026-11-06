@@ -6,6 +6,8 @@ Relay is the money layer for a solo founder's agent company: corporate cards and
 
 **Fiat is simulated. This runs on Whitechain Sepolia and uses test USDT with no real monetary value. No fiat-to-USDT conversion occurs.** The demo allocation is INR 500 → 5 test USDT (INR 100 per test USDT for the founder's display). This is a fixed demo allocation, not an exchange rate.
 
+![Relay company workspace, showing a completed simulated mission](docs/images/relay-company.png)
+
 ## Run locally
 
 Requires Node.js 22.13+, Git and, for Solidity, Foundry (tested with 1.4.4).
@@ -77,7 +79,7 @@ Run these from `C:\Users\swapn\Desktop\ethglobal` in your own PowerShell termina
 1. Run `npm ci`, `git submodule update --init --recursive`, `forge build` and `forge test -vv`.
 2. Run `./prepare-company.ps1`. It creates encrypted `relay-relayer`, `relay-treasury`, `relay-attester` keystores, department wallets and vendor wallets, without printing private keys or overwriting existing keystores. It prints the exact `forge create --broadcast --verify` command with constructor arguments last. Run that command.
 3. Run its two printed funding commands: **0.2 test WBT to the relayer** and **10 test USDT to the treasury**, from your existing business wallet. Keep the attester empty.
-4. Read the deployment block from the explorer. Run `./configure-company.ps1 -CompanyAddress 0xYOUR_COMPANY -DeploymentBlock YOUR_BLOCK`. After a summary and confirmation, it registers Finance, three department limits and three vendor prices using seven owner transactions.
+4. Read the deployment block from the explorer. Run `./configure-company.ps1 -CompanyAddress 0xYOUR_COMPANY -DeploymentBlock YOUR_BLOCK`. After a summary and confirmation, it unlocks the owner wallet once and configures Finance, three department limits and three vendor prices. Already-applied settings are skipped, so it safely resumes a partially completed setup. Signed transactions are journaled before broadcast.
 5. Run `./fund-company-pool.ps1`. After confirmation, the treasury signs a **10 test USDT** transfer into the pool; the separate relayer submits it and pays gas. The helper saves the signed transaction before sending. Do not delete that journal to blindly repeat a pending transfer.
 6. Stop the simulated vendor group and run `./start-company-testnet.ps1`. Enter your public HTTPS origin forwarded to **3004**, Razorpay TEST credentials, relayer and attester passwords, and a founder sign-in password of at least 12 characters. Review the signing policy and type `yes`.
 7. Set Razorpay's test webhook to **`https://YOUR-ORIGIN/api/webhooks/razorpay`**, event **`payment.captured`**, with the same webhook secret. Use automatic capture. The URL path is required; `/` returns 404. [Razorpay webhook validation](https://razorpay.com/docs/webhooks/validate-test/).

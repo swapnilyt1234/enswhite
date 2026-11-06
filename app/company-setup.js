@@ -1,11 +1,13 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { resolve, join } from 'node:path';
-import { Wallet, getAddress, keccak256 } from 'ethers';
+import { Wallet, Contract, getAddress, keccak256 } from 'ethers';
 import { randomBytes } from 'node:crypto';
 import { inspectToken, types } from './chain.js';
 import { openStore } from './payments.js';
 import { walletStore, DEPARTMENTS, VENDORS } from './company-store.js';
+import { pendingConfiguration } from './company-configure.js';
+import { COMPANY_ABI } from './company-chain.js';
 
 const directory = resolve('data/company/testnet');
 const command = process.argv[2];
@@ -37,6 +39,34 @@ if (command === 'prepare') {
   if(!Number.isSafeInteger(block)||block<1)throw new Error('A positive deployment block is required');
   await writeFile(join(directory,'deployment.json'),JSON.stringify({address,block},null,2));
   console.log('Saved public company deployment configuration.');
+} else if(command==='configure') {
+  const address=getAddress(process.argv[3]),block=Number(process.argv[4]);
+  if(!Number.isSafeInteger(block)||block<1)throw new Error('Invalid deployment block');
+  const config=JSON.parse(await readFile(join(directory,'setup.json'),'utf8'));
+  const base=await inspectToken(process.env.RPC_URL);
+  try{
+    const contract=new Contract(address,[...COMPANY_ABI,'function setFinance(address)','function setLimits(address,uint256,uint256)','function registerVendor(address,uint256)'],base.provider);
+    let owner;
+    try{owner=(await Wallet.fromEncryptedJson(await readFile(join(homedir(),'.foundry','keystores','whitechain-testnet'),'utf8'),process.env.OWNER_PASSWORD)).connect(base.provider)}catch{throw new Error('Could not unlock the owner keystore with that password')}
+    if(getAddress(await contract.owner())!==owner.address)throw new Error('Owner keystore does not own this company');
+    const plan=await pendingConfiguration(contract,config);
+    console.log(`Skipping ${7-plan.length} settings already configured; ${plan.length} remain.`);
+    for(const step of plan){
+      if((await base.provider.getNetwork()).chainId!==1874n)throw new Error('Wrong chain');
+      const data=contract.interface.encodeFunctionData(step.method,step.args);
+      const path=join(directory,`owner-${address}-${keccak256(data)}.json`);
+      let saved;
+      try{saved=JSON.parse(await readFile(path,'utf8'))}catch(error){if(error.code!=='ENOENT')throw error}
+      if(!saved){const raw=await owner.signTransaction(await owner.populateTransaction({to:address,data,chainId:1874}));saved={raw,hash:keccak256(raw)};await writeFile(path,JSON.stringify(saved),{flag:'wx',mode:0o600})}
+      let receipt=await base.provider.getTransactionReceipt(saved.hash);
+      if(!receipt){try{await base.provider.broadcastTransaction(saved.raw)}catch{if(!(await base.provider.getTransaction(saved.hash)))throw new Error('Broadcast unavailable; original transaction retained')};receipt=await base.provider.waitForTransaction(saved.hash,1,60000)}
+      if(!receipt||receipt.status!==1)throw new Error('Configuration did not confirm; do not replace the saved transaction blindly');
+      console.log(`${step.label}: confirmed ${saved.hash}`);
+    }
+    if((await pendingConfiguration(contract,config)).length)throw new Error('Onchain configuration does not match the setup');
+    await writeFile(join(directory,'deployment.json'),JSON.stringify({address,block},null,2));
+    console.log('All seven settings verified. You can now run fund-company-pool.ps1.');
+  }finally{base.provider.destroy()}
 } else if(command==='fund') {
   const config=JSON.parse(await readFile(join(directory,'setup.json'),'utf8'));
   const deployment=JSON.parse(await readFile(join(directory,'deployment.json'),'utf8'));
@@ -62,4 +92,4 @@ if (command === 'prepare') {
     console.log('Pool prefunded with 10 test USDT. Treasury signed, relayer paid WBT gas.');
     console.log(`https://explorer.testnet.whitechain.io/tx/${saved.hash}`);
   }finally{base.provider.destroy()}
-} else throw new Error('Use prepare, deployment <address> <block>, or fund');
+} else throw new Error('Use prepare, configure/deployment <address> <block>, or fund');

@@ -84,9 +84,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1793924926.0826712,
-    "seen": 1793924936.1190102,
-    "ast_hash": "305f9eab6973c68296938c4528e12325",
+    "mtime": 1793925267.9818869,
+    "seen": 1793925279.5109925,
+    "ast_hash": "335139289d6e4c34359d21ea3033d9d7",
     "semantic_hash": ""
   },
   "app/public/index.html": {
@@ -138,9 +138,9 @@
     "semantic_hash": ""
   },
   "app/company-setup.js": {
-    "mtime": 1793924212.504948,
-    "seen": 1793924936.1165788,
-    "ast_hash": "1666553200346e11eade534d05c512d2",
+    "mtime": 1793925179.084178,
+    "seen": 1793925279.5043716,
+    "ast_hash": "a84e8daf67ebd49183b9fe3b6f8c4131",
     "semantic_hash": ""
   },
   "app/company-store.js": {
@@ -180,9 +180,9 @@
     "semantic_hash": ""
   },
   "configure-company.ps1": {
-    "mtime": 1793924166.3013747,
-    "seen": 1793924936.117685,
-    "ast_hash": "5d33ee39100efcfdd68ea0f941ab6abe",
+    "mtime": 1793925179.0863392,
+    "seen": 1793925279.5072613,
+    "ast_hash": "477963cfce5413a5aeefcd8adbf05f90",
     "semantic_hash": ""
   },
   "fund-company-pool.ps1": {
@@ -225,6 +225,24 @@
     "mtime": 1793924927.554015,
     "seen": 1793924936.119279,
     "ast_hash": "71a70a9cd6fea86c9b370950b5886d78",
+    "semantic_hash": ""
+  },
+  "app/company-configure.js": {
+    "mtime": 1793925179.083183,
+    "seen": 1793925279.5041106,
+    "ast_hash": "80d368f3950680d8072cceda0438e04e",
+    "semantic_hash": ""
+  },
+  "app/company-configure.test.js": {
+    "mtime": 1793925179.0873487,
+    "seen": 1793925279.5041149,
+    "ast_hash": "432ab8cdfd5fafb1721e8bc531d96d98",
+    "semantic_hash": ""
+  },
+  "docs/images/relay-company.png": {
+    "mtime": 1793924963.2624922,
+    "seen": 1793925279.5118995,
+    "ast_hash": "29ba80162695d1a848083e840dcb4f2a",
     "semantic_hash": ""
   }
 }

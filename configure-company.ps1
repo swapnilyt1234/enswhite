@@ -2,23 +2,17 @@ param([Parameter(Mandatory=$true)][string]$CompanyAddress,[Parameter(Mandatory=$
 $ErrorActionPreference='Stop'
 Set-Location -LiteralPath $PSScriptRoot
 if($CompanyAddress -notmatch '^0x[a-fA-F0-9]{40}$' -or $DeploymentBlock -lt 1){throw 'Invalid company address or deployment block'}
-$config=Get-Content -LiteralPath 'data/company/testnet/setup.json' -Raw | ConvertFrom-Json
-foreach($item in @($config.departments)+@($config.vendors)) { if($item.address -notmatch '^0x[a-fA-F0-9]{40}$'){throw 'Invalid setup address'} }
-$rpc='https://rpc.testnet.whitechain.io'
-if((cast chain-id --rpc-url $rpc).Trim() -ne '1874'){throw 'Wrong chain'}
 Write-Host "Configure $CompanyAddress on Whitechain Sepolia: Finance, 3 department limits and 3 vendor prices."
-Write-Host 'The owner account whitechain-testnet pays the setup gas. Password entry stays in your terminal.'
-if((Read-Host 'Submit these seven configuration transactions? Type yes') -cne 'yes'){return}
-$finance=($config.departments | Where-Object id -eq 'finance').address
-cast send $CompanyAddress 'setFinance(address)' $finance --account whitechain-testnet --rpc-url $rpc
-if($LASTEXITCODE -ne 0){throw 'Finance configuration failed'}
-foreach($dept in $config.departments) {
-    cast send $CompanyAddress 'setLimits(address,uint256,uint256)' $dept.address $dept.perCall $dept.perDay --account whitechain-testnet --rpc-url $rpc
-    if($LASTEXITCODE -ne 0){throw 'Department configuration failed'}
+Write-Host 'Already applied settings will be skipped. Unlock the owner keystore once; the remaining transactions run sequentially.'
+if((Read-Host 'Submit only the remaining configuration transactions? Type yes') -cne 'yes'){return}
+$previous=[Environment]::GetEnvironmentVariable('OWNER_PASSWORD')
+$secret=Read-Host 'Encrypted whitechain-testnet OWNER keystore password (once)' -AsSecureString
+$pointer=[Runtime.InteropServices.Marshal]::SecureStringToBSTR($secret)
+try{
+    $env:OWNER_PASSWORD=[Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointer)
+    node app/company-setup.js configure $CompanyAddress $DeploymentBlock
+    if($LASTEXITCODE -ne 0){throw 'Owner configuration paused. Completed settings are preserved; rerunning skips them.'}
+}finally{
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer);$secret.Dispose()
+    [Environment]::SetEnvironmentVariable('OWNER_PASSWORD',$previous,'Process')
 }
-foreach($vendor in $config.vendors) {
-    cast send $CompanyAddress 'registerVendor(address,uint256)' $vendor.address $vendor.price --account whitechain-testnet --rpc-url $rpc
-    if($LASTEXITCODE -ne 0){throw 'Vendor configuration failed'}
-}
-node app/company-setup.js deployment $CompanyAddress $DeploymentBlock
-Write-Host 'Owner configuration complete. Prefund the pool with test USDT before starting company top-ups.'
