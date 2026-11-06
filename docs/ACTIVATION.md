@@ -33,6 +33,8 @@ The new controller permits founder edits only to discovery keys through `setAgen
 
 ## Existing public origin
 
+For wallet-free employee Hire/Fire/Renew, run `start-employee-manager.ps1` in a separate private operator terminal and restart the company server once. The founder clicks normal business controls; a bounded owner worker handles Sepolia signing. Keep the owner password out of the company server and `.env.company`. See [employee management](EMPLOYEE-MANAGEMENT.md).
+
 1. Restart `.\start-company-testnet.ps1` with the existing origin and local credentials. Company: **3004**; vendors: **4001–4003**. The updated policy includes automatic Finance requests within 50 test USDT; hard limits and founder approvals remain.
 2. Separately run `.\start-judge.ps1` using the same origin. Its child receives only selected OS variables, the origin and fixed owner-proxy flag; no paid AI or signing credentials are forwarded.
 3. Forward the existing ngrok hostname to **http://127.0.0.1:3006**. For example: `ngrok http --url=zoning-playhouse-banister.ngrok-free.dev 3006`. Keep one tunnel for that hostname.

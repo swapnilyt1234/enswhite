@@ -34,7 +34,7 @@ export function createCompanyApp(company, origin, { guest = false } = {}) {
     req.on('close',()=>{clearInterval(heartbeat);unsubscribe()});
   });
   app.get('/api/vendors/:id/earnings',async(req,res)=>res.json(await company.vendorEarnings(req.params.id)));
-  app.post('/api/ens/manage',async(req,res)=>res.json(await company.manageENS(req.body.action,req.body.label,req.body.term)));
+  app.post('/api/ens/manage',async(req,res)=>{if(!req.body||Object.keys(req.body).some(x=>!['action','label','term'].includes(x)))return res.status(400).json({error:'Invalid employee request'});res.status(202).json(await company.manageENS(req.body.action,req.body.label,req.body.term,req.get('idempotency-key')))});
   app.post('/api/ens/signup',async(req,res)=>res.json(await company.signupENS(req.body.label)));
   app.post('/api/ens/budget',async(req,res)=>res.json(company.updateENSBudget(req.body.label,req.body.amount,req.get('idempotency-key'))));
   app.post('/api/orders', async (req, res) => res.json(await company.order()));

@@ -13,6 +13,7 @@ import {createAgentStore} from './agent-store.js';
 import {createAgentRuntime} from './agent-runtime.js';
 import {createAgentTools,offlineAction} from './agent-tools.js';
 import {EMPLOYEES} from './agent-definitions.js';
+import {createEmploymentQueue} from './employment.js';
 
 export const COMPANY_SCHEME = 'enswhite-receive';
 const now = () => Math.floor(Date.now()/1000);
@@ -61,6 +62,8 @@ export async function createCompany({ env = process.env, directory = resolve(env
     const gateway = createGateway(env, db);
     const activity=createActivity(db);
     const agentStore=createAgentStore(db);let runtime;
+    const employment=directoryENS?createEmploymentQueue(db,{controller:env.ENS_NAMES_ADDRESS,company:directoryENS.companyName,parent:env.ENS_PARENT_NAME,departments,vendors}):null;
+    const assertNotFiring=label=>{if(employment?.firing(label))throw fail('This employee is being removed. New work and payments are paused.',409)};
     const ensWriter=directoryENS?createENSWriter(db,directoryENS,getWallet,event=>activity.record(event.label,event.key==='enswhite.status'?'ens_status':'budget_updated',event.key==='enswhite.status'?`My ENS status is now ${event.value}.`:`Finance updated my ENS weekly budget to ${formatUnits(event.value,6)} test USDT.`,{data:{hash:event.hash,network:'sepolia',value:event.value},key:`ens:${event.hash}`})):null;
     db.prepare('INSERT OR IGNORE INTO settings VALUES(?,?)').run('company_config', fingerprint);
     let running;
@@ -82,7 +85,7 @@ export async function createCompany({ env = process.env, directory = resolve(env
     }
     const service = {
       db, chain, departments, vendors, gateway, activity,agentStore,
-      async assertEmployee(label){const dept=departments.find(x=>x.id===label);if(!dept)throw fail('Unknown employee',403);if(directoryENS){const identity=await directoryENS.employee(label);if(identity.wallet.toLowerCase()!==dept.address.toLowerCase())throw fail('Employee identity differs from its signer',403);return identity}return{name:label,wallet:dept.address,simulated:true}},
+      async assertEmployee(label){const dept=departments.find(x=>x.id===label);if(!dept)throw fail('Unknown employee',403);assertNotFiring(label);if(directoryENS){const identity=await directoryENS.employee(label);if(identity.wallet.toLowerCase()!==dept.address.toLowerCase())throw fail('Employee identity differs from its signer',403);return identity}return{name:label,wallet:dept.address,simulated:true}},
       async agentLedger(missionId){
         const snapshot=await chain.snapshot(),all=await receipts(),payments=all.filter(x=>db.prepare('SELECT id FROM company_tasks WHERE id=? AND mission_id=?').get(x.requestId,missionId)),team=[];
         for(const dept of departments)team.push({id:dept.id,balance:String(await chain.balance(dept.address)),available:String(await remaining(dept)),weekly:directoryENS?(await directoryENS.employee(dept.id)).weekly:simulatedWeekly(dept),approval:dept.approval});
@@ -119,6 +122,7 @@ export async function createCompany({ env = process.env, directory = resolve(env
           business:businessProfile(),
           missions: db.prepare('SELECT m.*, CASE WHEN k.mission_id IS NULL THEN 0 ELSE 1 END kit_ready FROM company_missions m LEFT JOIN company_kits k ON k.mission_id=m.id ORDER BY m.created_at DESC').all(), ledger, jobs: jobs(),
           activity:db.prepare('SELECT * FROM company_activity ORDER BY id DESC LIMIT 200').all().reverse().map(row=>({...row,data:JSON.parse(row.data)})),
+          employment:{ready:employment?.ready()||false,jobs:employment?.jobs()||[]},
           aiMode:env.AGENT_MODE==='llm'?(!env.OPENAI_API_KEY||!env.OPENAI_MODEL?'configuration required':agentStore.runs().some(x=>x.mission_id===latest?.id&&x.state==='failed')?'paused':'configured'):'offline',
           budgetRequests:db.prepare('SELECT id,mission_id,dept,vendor,state,amount,target,reason FROM company_budget_requests').all(),
           agentRuns:agentStore.runs(),agentMessages:db.prepare("SELECT id,run_id,mission_id,sender,recipient,kind,content,created_at FROM agent_messages WHERE kind!='model_output' ORDER BY id DESC LIMIT 100").all().reverse().map(x=>({...x,content:JSON.parse(x.content)})),
@@ -148,11 +152,18 @@ export async function createCompany({ env = process.env, directory = resolve(env
         db.prepare("INSERT OR REPLACE INTO settings VALUES('business_profile',?)").run(JSON.stringify(profile));return profile;
       },
       kit(id) {const row=db.prepare('SELECT kit FROM company_kits WHERE mission_id=?').get(id);if(!row)throw fail('Campaign Kit is waiting for all commissioned work to be delivered',409);return JSON.parse(row.kit)},
-      async manageENS(action,label,term) {
-        if(!directoryENS)throw fail('ENSv2 is not configured',409);
+      async manageENS(action,label,term=2592000,id) {
+        if(!directoryENS||!employment)throw fail('Employee management is not configured',409);
         const dept=departments.find(row=>row.id===label);
         if(!dept)throw fail('Choose a registered department');
-        return directoryENS.transaction(action,label,dept.address,{weekly:dept.weekly,perCall:dept.perCall,vendors:vendors.filter(v=>v.dept===label).map(v=>`${v.id}.vendors.${env.ENS_PARENT_NAME}`)},term);
+        if(!['hire','fire','renew'].includes(action)||![300,2592000].includes(term))throw fail('Invalid employee action or employment term');
+        const prior=id&&employment.request(id);if(prior){if(prior.action!==action||prior.label!==label||prior.term!==term)throw fail('Request ID belongs to another employee change',409);return{id:prior.id,state:prior.state}}
+        let identity;try{identity=await directoryENS.employee(label)}catch(error){if(error.message!=='Employee is fired or expired')throw error}
+        if(action==='hire'&&identity)throw fail('This employee is already hired',409);
+        if(action!=='hire'&&!identity)throw fail('This employee is no longer active',409);
+        const saved=employment.policy(label),policy={weekly:identity?.weekly||saved?.weekly||dept.weekly,perCall:identity?.perCall||saved?.perCall||dept.perCall,vendors:identity?.vendors||saved?.vendors||vendors.filter(v=>v.dept===label).map(v=>`${v.id}.vendors.${env.ENS_PARENT_NAME}`)};
+        const result=employment.queue(action,label,term,policy,id);
+        activity.record(label,'employment_requested',`The founder requested ${action==='fire'?'employee removal':action==='hire'?'a new employment term':'an employment renewal'}. The business service will submit it.`,{data:{requestId:result.id},key:`employment-request:${result.id}`});return result;
       },
       async signupENS(label) {
         if(!directoryENS)throw fail('ENSv2 is not configured',409);
@@ -284,6 +295,7 @@ export async function createCompany({ env = process.env, directory = resolve(env
         const task = db.prepare('SELECT * FROM company_tasks WHERE id=?').get(payload.payload.requestId);
         const dept = departments.find(d => d.id === task?.dept), vendor = vendors.find(v => v.id === task?.vendor);
         if (!task || !dept || !vendor || ['approval', 'rejected', 'failed'].includes(task.state)) throw fail('Policy or approval rejected');
+        assertNotFiring(dept.id);
         if (payload.accepted.amount !== task.amount || payload.accepted.asset?.toLowerCase() !== TOKEN.toLowerCase() || payload.accepted.payTo?.toLowerCase() !== chain.address.toLowerCase() || a?.nonce !== boundNonce(vendor.address, task.id, task.salt) || a.from !== dept.address || a.to !== chain.address || a.value !== task.amount) throw fail('Payment does not match the reserved order');
         if (verifyTypedData(chain.domain, RECEIVE_TYPES, a, payload.payload.signature) !== dept.address) throw fail('Invalid department signature');
         if (Number(a.validAfter) >= now() || Number(a.validBefore) <= now() || Number(a.validBefore) > now()+300) throw fail('Authorization expired or invalid');
@@ -292,6 +304,7 @@ export async function createCompany({ env = process.env, directory = resolve(env
       async processJobs() {
         if (running) return running;
         running = (async () => {
+          for(const job of employment?.jobs()||[])if(['confirmed','failed'].includes(job.state))activity.record(job.label,'employment_updated',job.state==='confirmed'?`The employee ${job.action==='fire'?'was removed':job.action==='hire'?'was hired':'employment was renewed'}.`:'The employee update needs operator attention.',{data:{requestId:job.id,hash:job.hash,network:'sepolia'},key:`employment-result:${job.id}`});
           await runtime.tick();
           // One request at a time keeps Finance's ENS edit and allocation nonce ordered.
           const request=db.prepare("SELECT * FROM company_budget_requests WHERE state IN ('waiting','ens','allocating') ORDER BY rowid LIMIT 1").get();
@@ -346,7 +359,9 @@ export async function createCompany({ env = process.env, directory = resolve(env
                   data.deadline = String(now()+300);
                   data.signature = await attester.signTypedData(chain.companyDomain, TOP_UP_TYPES, { paymentId: data.paymentId, amount: data.amount, deadline: data.deadline });
                 } else if (row.kind === 'allocation') {
+                  assertNotFiring('finance');
                   const dept=departments.find(d=>d.address===data.dept),limit=directoryENS?(await directoryENS.employee(dept.id)).weekly:simulatedWeekly(dept);
+                  assertNotFiring(dept.id);
                   const committed=db.prepare("SELECT data FROM company_jobs WHERE kind='allocation' AND state!='failed'").all().map(x=>JSON.parse(x.data)).filter(x=>x.week===data.week&&x.dept===data.dept).reduce((n,x)=>n+BigInt(x.amount),0n);
                   if(committed>BigInt(limit))throw new Error('Cumulative weekly allocations exceed policy');
                   if(directoryENS){
@@ -360,6 +375,7 @@ export async function createCompany({ env = process.env, directory = resolve(env
                 } else {
                   const task = db.prepare('SELECT * FROM company_tasks WHERE id=?').get(row.id);
                   const dept = departments.find(d => d.id === task.dept), vendor = vendors.find(v => v.id === task.vendor);
+                  assertNotFiring(dept.id);
                   if (!['queued','submitted'].includes(task.state)) throw new Error('Task not approved');
                   const identity = directoryENS ? await directoryENS.authorize(dept.id, `${vendor.id}.vendors.${env.ENS_PARENT_NAME}`, dept.address, vendor.address, vendor.url+'/work', task.amount) : null;
                   activity.record(dept.id,'policy_checked','I refreshed my employment and vendor policy immediately before signing.',{mission:task.mission_id,data:{requestId:task.id},key:`fresh:${task.id}`});

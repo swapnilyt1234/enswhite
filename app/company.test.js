@@ -32,6 +32,25 @@ async function setup(t, options = {}) {
 }
 async function fund(company) { const order = await company.order(); await company.simulate(order.id); await company.processJobs(); return order; }
 
+test('founder employment requests queue without a browser wallet and pending removal blocks new work',async t=>{
+ const controller='0x0000000000000000000000000000000000000003';let company,inactive=false;
+ const directory={companyName:'acme.enswhite.eth',provider:{},close(){},async employee(label){if(inactive&&label==='support')throw new Error('Employee is fired or expired');const dept=company.departments.find(x=>x.id===label);return{wallet:dept.address,weekly:dept.weekly,perCall:dept.perCall,vendors:label==='support'?['lingualink.vendors.enswhite.eth']:label==='marketing'?['copydesk.vendors.enswhite.eth','pixelpress.vendors.enswhite.eth']:[]}},transaction(){throw new Error('The web app must not request browser signing')}};
+ ({company}=await setup(t,{env:{ENS_NAMES_ADDRESS:controller,ENS_PARENT_NAME:'enswhite.eth',FOUNDER_PASSWORD:'founder-local-password'},ensDirectory:directory}));
+ company.db.prepare('INSERT INTO employment_worker VALUES(1,?,?,?)').run('test-private-worker',controller,Date.now());
+ const server=createServer(createCompanyApp(company,'http://localhost'));await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>{server.closeAllConnections();server.close()});
+ const port=server.address().port,request=async(path,body,cookie)=>new Promise((resolve,reject)=>{
+  import('node:http').then(({request})=>{const req=request({hostname:'127.0.0.1',port,path,method:'POST',headers:{host:'localhost',origin:'http://localhost','content-type':'application/json',...(cookie?{cookie}:{}),'idempotency-key':'founder-remove-support-01'}},res=>{let text='';res.on('data',x=>text+=x);res.on('end',()=>resolve({status:res.statusCode,headers:res.headers,body:JSON.parse(text)}))});req.on('error',reject);req.end(JSON.stringify(body))}).catch(reject);
+ });
+ assert.equal((await request('/api/ens/manage',{action:'fire',label:'support'})).status,401);
+ const login=await request('/api/login',{password:'founder-local-password'}),cookie=login.headers['set-cookie'][0].split(';')[0];
+ assert.equal((await request('/api/ens/manage',{action:'fire',label:'support',to:'attacker'},cookie)).status,400);
+ const result=await request('/api/ens/manage',{action:'fire',label:'support'},cookie);assert.equal(result.status,202);assert.equal(result.body.state,'queued');
+ assert.equal(company.db.prepare('SELECT raw FROM employment_jobs').get().raw,null);
+ await assert.rejects(company.assertEmployee('support'),/being removed/);assert.equal((await company.assertEmployee('marketing')).wallet,company.departments[0].address);
+ company.db.prepare("UPDATE employment_jobs SET state='confirmed'").run();inactive=true;
+ assert.equal((await request('/api/ens/manage',{action:'fire',label:'support'},cookie)).body.state,'confirmed');
+});
+
 test('mocked Responses employees use tools end to end, hand off real copy and preserve founder policy facts',async t=>{
  const scripts={marketing:[['read_context',{}],['create_campaign_brief',{objective:'Launch sandalwood candles',audience:'Premium home decor buyers',designNotes:'Use the actual headline and forest brand palette'}],['request_quote',{vendor:'copydesk',brief:'Write our sandalwood launch copy'}],['purchase_service',{vendor:'copydesk'}],['read_work',{vendor:'copydesk'}],['request_quote',{vendor:'pixelpress',brief:'Use the delivered copy and product details'}],['purchase_service',{vendor:'pixelpress'}],['submit_work',{summary:'Campaign copy and banner delivered with receipts.'}]],support:[['read_context',{}],['draft_faq',{questions:[{question:'When does it ship?',source:'shipping'},{question:'Can I return it?',source:'returns'}]}],['review_faq',{}],['request_quote',{vendor:'lingualink',brief:'Translate only the reviewed facts'}],['purchase_service',{vendor:'lingualink'}],['submit_work',{summary:'Sourced customer help and translation draft delivered.'}]],finance:[['read_context',{}],['read_ledger',{}],['review_spending',{}],['propose_allocation',{marketingUnits:'0',supportUnits:'0',financeUnits:'0',rationale:'Existing founder-approved funds cover the three registered service costs.'}],['prepare_report',{}],['prepare_report',{}],['submit_work',{summary:'All three vendor receipts reconcile.'}]]};
  const indexes={marketing:0,support:0,finance:0},requests=[];
