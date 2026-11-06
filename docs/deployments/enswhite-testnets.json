@@ -126,7 +126,8 @@
           "method": "hire",
           "termSeconds": 2592000
         }
-      ]
+      ],
+      "restoredStatusTransaction": "0x3a100e7080e1d83740e2fea5a85cfc4dccf9ce94caf495b3ef64686e5e159f9a"
     }
   },
   "whitechain": {
@@ -164,5 +165,11 @@
         "vendorNode": "0xf2dd4ac9e63f1071ea23c3f547ef72c8ae9d97af664ddb8cca3bc4a10c34f45d"
       }
     ]
+  },
+  "validation": {
+    "backendTestsPassed": 36,
+    "ensForkTestsPassed": 2,
+    "ensWhiteCompanyTestsPassed": 5,
+    "walletPopupLifecycleTested": false
   }
 }

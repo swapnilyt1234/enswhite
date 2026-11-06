@@ -36,9 +36,9 @@
     "semantic_hash": ""
   },
   "app/chain.js": {
-    "mtime": 1793904427.5741816,
-    "seen": 1793904442.5393722,
-    "ast_hash": "912f4cc0c43acef0180c7be8a4ffebca",
+    "mtime": 1793952009.1407254,
+    "seen": 1793952621.383945,
+    "ast_hash": "b637cfc5e1a61812c35450d88a56fad9",
     "semantic_hash": ""
   },
   "app/check-chain.js": {
@@ -84,9 +84,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1793951798.8956575,
-    "seen": 1793951806.4546509,
-    "ast_hash": "6488df3027eff248c40d94c4b5cd768b",
+    "mtime": 1793952612.6787798,
+    "seen": 1793952621.402355,
+    "ast_hash": "6b71d504266c34563a9bb2c3dadaa10a",
     "semantic_hash": ""
   },
   "app/public/index.html": {
@@ -126,9 +126,9 @@
     "semantic_hash": ""
   },
   "app/company-public/company-ui.js": {
-    "mtime": 1793951355.6177337,
-    "seen": 1793951575.5445845,
-    "ast_hash": "453ae4c6753e30b5686931a42cf5c239",
+    "mtime": 1793952411.68197,
+    "seen": 1793952621.385608,
+    "ast_hash": "a45023b7d37cc91672989a68f8691296",
     "semantic_hash": ""
   },
   "app/company-server.js": {
@@ -168,9 +168,9 @@
     "semantic_hash": ""
   },
   "app/run-company.js": {
-    "mtime": 1793923647.5650005,
-    "seen": 1793924936.117105,
-    "ast_hash": "524abb061cffedd27b3d89d69a69eca6",
+    "mtime": 1793952051.7341301,
+    "seen": 1793952621.3927221,
+    "ast_hash": "a05bf09bf16a2d5e4cd74cddcba47073",
     "semantic_hash": ""
   },
   "app/vendor-server.js": {
@@ -330,9 +330,9 @@
     "semantic_hash": ""
   },
   "docs/deployments/enswhite-testnets.json": {
-    "mtime": 1793951775.4796824,
-    "seen": 1793951806.4475658,
-    "ast_hash": "3ce75f4685b2846dcfaf570f9cb44768",
+    "mtime": 1793952456.2165143,
+    "seen": 1793952621.3955543,
+    "ast_hash": "e7dd5d61d935dcedb84304aeda37371a",
     "semantic_hash": ""
   },
   "ens/scripts/demo.js": {
@@ -345,6 +345,12 @@
     "mtime": 1793951118.36506,
     "seen": 1793951575.5535579,
     "ast_hash": "7b347aec61e42c343e5dd1c6db71b4d0",
+    "semantic_hash": ""
+  },
+  "app/chain.test.js": {
+    "mtime": 1793952009.1447225,
+    "seen": 1793952621.3839517,
+    "ast_hash": "d4225e841815c83c1ec89b43e4808b94",
     "semantic_hash": ""
   }
 }

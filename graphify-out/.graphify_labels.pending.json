@@ -6,12 +6,13 @@
   "4": "Connecting to Whitechain Sepolia",
   "5": "payments.js",
   "6": "bootstrap.js",
-  "7": "node",
+  "7": "company-server.js",
   "8": "app.js",
   "9": "EnsWhite",
   "10": "configure-enswhite-company.ps1",
   "11": "Steps",
   "12": "company-setup.js",
-  "13": "vendor-server.js",
-  "14": "company.test.js"
+  "13": "gas-replenisher.js",
+  "14": "ref_node_assert",
+  "15": "node"
 }

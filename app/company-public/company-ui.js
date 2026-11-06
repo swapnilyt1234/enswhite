@@ -2,11 +2,12 @@ const $ = id => document.getElementById(id);
 const money = units => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(Number(units || 0)/10000);
 const esc = text => String(text ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[char]));
 const icons = { marketing:'✧',support:'◌',finance:'▤',copydesk:'Aa',pixelpress:'▧',lingualink:'अ' };
-let state, busy = false, images = [], checkoutScript;
+let state, busy = false, images = [], checkoutScript, refreshError=false;
 let missionKey = sessionStorage.getItem('relayMissionKey'), missionTitle = sessionStorage.getItem('relayMissionTitle');
 const chainPreference = localStorage.getItem('relayShowOnchain') === 'true';
 document.body.dataset.onchain = String(chainPreference); $('show-chain').checked = chainPreference;
-function status(message, error = false) { $('status').textContent = message; $('status').classList.toggle('error', error); }
+function status(message, error = false) { refreshError=false; $('status').textContent = message; $('status').classList.toggle('error', error); }
+function refreshFailed(error){status(error.message,true);refreshError=true}
 async function api(path, options = {}) {
   const response = await fetch('/api' + path, { ...options, headers: { 'Content-Type':'application/json', ...options.headers } });
   const body = await response.json();
@@ -89,6 +90,7 @@ function renderVendors() {
 }
 async function refresh() {
   state=await api('/state');$('login').hidden=true;
+  if(refreshError)status('Connected. Showing confirmed company state.');
   $('ens-controls').hidden=!state.ens?.enabled;
   const branding=state.ens?.branding;
   $('ens-company-brand').textContent=branding?`${branding.name} · ${state.ens.companyName}`:(state.ens?.companyName||'');
@@ -118,7 +120,7 @@ async function refresh() {
 async function act(action) {
   if(busy)return;busy=true;document.querySelectorAll('button').forEach(button=>button.disabled=true);
   try{await action()}catch(error){status(error.message,true)}
-  finally{busy=false;document.querySelectorAll('button').forEach(button=>button.disabled=false);try{await refresh()}catch(error){status(error.message,true)}}
+  finally{busy=false;document.querySelectorAll('button').forEach(button=>button.disabled=false);try{await refresh()}catch(error){refreshFailed(error)}}
 }
 $('allocate').addEventListener('click',()=>act(async()=>{await api('/allocate',{method:'POST'});status('Finance signed the budget allocations. Your team is ready.')}));
 $('mission-form').addEventListener('submit',event=>{event.preventDefault();act(async()=>{
@@ -168,5 +170,5 @@ $('topup').addEventListener('click',()=>act(async()=>{
   await checkout();await new Promise(resolve=>{const widget=new window.Razorpay({key:order.keyId,order_id:order.id,amount:order.amount,currency:order.currency,name:'EnsWhite · Test mode',description:'₹500 sandbox top-up → company budget',handler(){status('Checkout complete. Waiting for verified attestation and onchain company credit.');resolve()},modal:{ondismiss:resolve},theme:{color:'#195740'}});widget.on('payment.failed',()=>{status('Sandbox payment failed; no credit issued.',true);resolve()});widget.open()});
 }));
 $('login-form').addEventListener('submit',async event=>{event.preventDefault();try{await api('/login',{method:'POST',body:JSON.stringify({password:$('password').value})});$('password').value='';await refresh()}catch(error){$('login-error').textContent=error.message}});
-go(location.hash.slice(1));refresh().catch(error=>status(error.message,true));
-setInterval(()=>{if(!busy&&!document.hidden)refresh().catch(()=>{})},6000);
+go(location.hash.slice(1));refresh().catch(refreshFailed);
+setInterval(()=>{if(!busy&&!document.hidden)refresh().catch(refreshFailed)},6000);

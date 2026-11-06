@@ -21,9 +21,21 @@ const abi = [
   'function transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)',
 ];
 
+export async function retryRPCRead(read) {
+  for(let attempt=0;;attempt++) {
+    try{return await read()}
+    catch(error) {
+      if(!['TIMEOUT','NETWORK_ERROR','ECONNRESET','ETIMEDOUT'].includes(error.code)||attempt===2)throw error;
+      await new Promise(resolve=>setTimeout(resolve,1000));
+    }
+  }
+}
+
 export async function inspectToken(rpc = 'https://rpc.testnet.whitechain.io') {
   if (new URL(rpc).protocol !== 'https:') throw new Error('RPC must use HTTPS');
+  return retryRPCRead(async()=>{
   const request = new FetchRequest(rpc);
+  request.timeout=10_000;
   request.setHeader('User-Agent', 'WhitechainHackathon/0.1');
   const provider = new JsonRpcProvider(request);
   try {
@@ -39,6 +51,7 @@ export async function inspectToken(rpc = 'https://rpc.testnet.whitechain.io') {
     await token.authorizationState('0x0000000000000000000000000000000000000001', '0x' + '00'.repeat(32));
     return { provider, token, domain, decimals: Number(decimals) };
   } catch (error) { provider.destroy(); throw error; }
+  });
 }
 
 export function checkAuthorization(domain, authorization, signature, expected) {
