@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { Contract, Interface, Wallet, Signature, TypedDataEncoder, AbiCoder, keccak256, toUtf8Bytes, verifyTypedData, getAddress } from 'ethers';
-import { inspectToken, TOKEN } from './chain.js';
+import { inspectToken, TOKEN, retryRPCRead } from './chain.js';
 
 export const RECEIVE_TYPES = { ReceiveWithAuthorization: [
   { name: 'from', type: 'address' }, { name: 'to', type: 'address' }, { name: 'value', type: 'uint256' },
@@ -154,11 +154,20 @@ export async function createRealCompanyChain(env, config) {
   } catch (error) { base.provider.destroy(); throw error; }
 }
 
+const eventReaders=new WeakMap();
 export async function readCompanyEvents(provider, address, start, vendor) {
-  const end = await provider.getBlockNumber(), output = [];
+  let readers=eventReaders.get(provider);if(!readers){readers=new Map();eventReaders.set(provider,readers)}
+  const key=JSON.stringify([address.toLowerCase(),start,vendor?.toLowerCase()]),state=readers.get(key)||{events:[],end:null,anchor:null,pending:null};readers.set(key,state);
+  if(state.pending)return state.pending;
+  state.pending=(async()=>{
+  const end=await retryRPCRead(()=>provider.getBlockNumber()),head=end>=start?await retryRPCRead(()=>provider.getBlock(end)):null;let from=start;
+  if(end>=start&&!head?.hash)throw new Error('Company event head unavailable');
+  // Recheck the recent window and its canonical anchor; never cache payment permission.
+  if(state.end!==null&&end>=state.end&&state.anchor&&(await retryRPCRead(()=>provider.getBlock(state.anchor.number)))?.hash===state.anchor.hash)from=Math.max(start,state.end-11);
+  const output=state.events.filter(event=>event.block<from);
   const paid = [companyInterface.getEvent('Paid').topicHash,identityInterface.getEvent('Paid').topicHash];
-  for (let from = start; from <= end; from += 2000) {
-    const logs = await provider.getLogs({ address, fromBlock: from, toBlock: Math.min(from + 1999, end), ...(vendor ? { topics: [paid, null, null, '0x' + vendor.slice(2).toLowerCase().padStart(64, '0')] } : {}) });
+  for (let block = from; block <= end; block += 2000) {
+    const logs = await retryRPCRead(()=>provider.getLogs({ address, fromBlock: block, toBlock: Math.min(block + 1999, end), ...(vendor ? { topics: [paid, null, null, '0x' + vendor.slice(2).toLowerCase().padStart(64, '0')] } : {}) }));
     for (const log of logs) {
       const event = parseCompanyLog(log); if (!event) continue;
       const fields = {};
@@ -166,5 +175,11 @@ export async function readCompanyEvents(provider, address, start, vendor) {
       if (['Paid', 'ToppedUp', 'Allocated'].includes(event.name)) output.push({ ...fields, kind: { Paid: 'payment', ToppedUp: 'topup', Allocated: 'allocation' }[event.name], hash: log.transactionHash, block: log.blockNumber });
     }
   }
-  return output;
+  const number=Math.max(start,end-12),anchor=end>=start?await retryRPCRead(()=>provider.getBlock(number)):null;
+  if(end>=start&&!anchor?.hash)throw new Error('Company event checkpoint unavailable');
+  if(head&&(await retryRPCRead(()=>provider.getBlock(end)))?.hash!==head.hash)throw new Error('Company chain changed during event scan; retry the read');
+  state.events=output;state.end=end;state.anchor=anchor?{number,hash:anchor.hash}:null;
+  return output.map(event=>({...event}));
+  })().finally(()=>{state.pending=null});
+  return state.pending;
 }
