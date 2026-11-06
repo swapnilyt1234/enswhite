@@ -1,4 +1,5 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { homedir } from 'node:os';
 import { AbiCoder, Contract, ContractFactory, Interface, JsonRpcProvider, Wallet, dnsEncode, getAddress, getBytes, keccak256, toUtf8Bytes } from 'ethers';
@@ -20,6 +21,7 @@ const registryABI=[
 ];
 const resolverABI=['function initialize((address account,uint256 roleBitmap)[],bytes[])','function setAddress(bytes,uint256,bytes)','function setText(bytes,string,string)'];
 const dir=resolve('data/ens'), source=resolve('data/company/testnet');
+if(process.argv[2]==='apply'&&(existsSync(join(dir,'agent-discovery-v1/plan.json'))||(existsSync(join(dir,'runtime.json'))&&JSON.parse(await readFile(join(dir,'runtime.json'),'utf8')).discoveryVersion)))throw new Error('Discovery migration is active. Do not restore the original directory; use setup-agent-discovery.ps1 to resume.');
 const parent=process.env.ENS_PARENT_NAME||'enswhite.eth', label=parent.split('.')[0];
 if(!/^[a-z0-9-]+\.eth$/.test(parent))throw new Error('Use a normalized lowercase .eth parent');
 const p=new JsonRpcProvider(process.env.SEPOLIA_RPC_URL||'https://ethereum-sepolia-rpc.publicnode.com',11155111,{cacheTimeout:0});

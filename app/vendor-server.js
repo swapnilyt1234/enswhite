@@ -9,6 +9,8 @@ import { inspectToken, TOKEN, NETWORK } from './chain.js';
 import { parseCompanyLog, readCompanyEvents } from './company-chain.js';
 import { encodePayment, decodePayment } from './x402.js';
 import { vendorWork } from './agents.js';
+import { vendorHTML } from './vendor-page.js';
+import { fileURLToPath } from 'node:url';
 
 export async function createVendor(vendorId, env = process.env) {
   const info = VENDORS.find(v => v.id === vendorId);
@@ -45,7 +47,8 @@ export async function createVendor(vendorId, env = process.env) {
     const receipts = await events();
     res.json({ vendor: info.name, address: wallet.address, mode, netUnits: receipts.reduce((sum, row) => sum + BigInt(row.amount) - BigInt(row.fee), 0n).toString(), receipts });
   });
-  app.get('/', (req, res) => res.type('html').send(`<!doctype html><html lang="en"><meta charset="utf-8"><title>${info.name} · Vendor earnings</title><body style="font:16px system-ui;max-width:800px;margin:60px auto;background:#f7f8f2;color:#193d31"><h1>${info.name}</h1><p>${info.service} · Independent vendor · ${mode}</p><code>${wallet.address}</code><p>Earnings below are read independently from ${mode === 'testnet' ? 'RelayCompany Paid events on Whitechain' : 'the local simulated ledger'}.</p><pre id="earnings">Loading…</pre><script>fetch('/api/earnings').then(r=>r.json()).then(r=>document.getElementById('earnings').textContent=JSON.stringify(r,null,2))</script></body></html>`));
+  app.get('/vendor-ui.js',(req,res)=>res.sendFile(fileURLToPath(new URL('./company-public/vendor-ui.js',import.meta.url))));
+  app.get('/',(req,res)=>res.type('html').send(vendorHTML({...info,address:wallet.address},{ensName:env.ENS_ENABLED==='true'?`${info.id}.vendors.${env.ENS_PARENT_NAME}`:'',mode})));
   // A vendor unlocks delivery only after independently finding its own Paid receipt.
   app.post('/work', async (req, res, next) => {
     const body = req.body;

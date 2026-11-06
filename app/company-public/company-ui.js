@@ -3,20 +3,26 @@ const money = units => new Intl.NumberFormat('en-IN', { style: 'currency', curre
 const esc = text => String(text ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[char]));
 const icons = { marketing:'✧',support:'◌',finance:'▤',copydesk:'Aa',pixelpress:'▧',lingualink:'अ' };
 let state, busy = false, images = [], checkoutScript, refreshError=false;
+const routePrefix=location.pathname.startsWith('/guest/')?'/guest':location.pathname.startsWith('/owner/')?'/owner':'';
+let selectedAgent='all',activityStream;const workEvents=new Map();
+const deskLink=document.createElement('a');deskLink.href='#desk';deskLink.dataset.view='desk';deskLink.className='nav-link';deskLink.innerHTML='<span aria-hidden="true">◉</span>Agent Desk';document.querySelector('nav').append(deskLink);
+const businessForm=document.createElement('form');businessForm.className='business-form recent-panel';businessForm.innerHTML='<h2>Your business</h2><p class="micro">Give your employees the context they need. This profile guides future missions; it does not change ENS ownership or payment permissions.</p><label>Business name<input name="name" maxlength="80" required></label><label>What do you sell?<textarea name="description" maxlength="600" required></textarea></label><label>Who is it for?<input name="audience" maxlength="180" required></label><label>Customer help language<select name="language"><option>Hindi</option><option>Marathi</option></select></label><button class="btn outline" type="submit">Save business profile →</button>';
+$('view-team').append(businessForm);
+businessForm.addEventListener('submit',event=>{event.preventDefault();act(async()=>{await api('/business',{method:'POST',body:JSON.stringify(Object.fromEntries(new FormData(businessForm)))});status('Business profile saved. Your next mission will use this context.');await refresh()})});
 let missionKey = sessionStorage.getItem('relayMissionKey'), missionTitle = sessionStorage.getItem('relayMissionTitle');
 const chainPreference = localStorage.getItem('relayShowOnchain') === 'true';
 document.body.dataset.onchain = String(chainPreference); $('show-chain').checked = chainPreference;
 function status(message, error = false) { refreshError=false; $('status').textContent = message; $('status').classList.toggle('error', error); }
 function refreshFailed(error){status(error.message,true);refreshError=true}
 async function api(path, options = {}) {
-  const response = await fetch('/api' + path, { ...options, headers: { 'Content-Type':'application/json', ...options.headers } });
+  const response = await fetch(routePrefix+'/api' + path, { ...options, headers: { 'Content-Type':'application/json', ...options.headers } });
   const body = await response.json();
-  if (response.status === 401) { $('login').hidden = false; throw new Error('Sign in with your founder password.'); }
+  if (response.status === 401) { if(routePrefix==='/guest'){location.href='/';throw new Error('Guest session expired.')} $('login').hidden = false; throw new Error('Sign in with your founder password.'); }
   if (!response.ok) throw new Error(body.error || 'Request failed');
   return body;
 }
 function go(view) {
-  if (!['team','mission','approvals','books','marketplace'].includes(view)) view='team';
+  if (!['team','mission','approvals','books','marketplace','desk'].includes(view)) view='team';
   document.querySelectorAll('.view').forEach(section=>{section.hidden=section.id!=='view-'+view});
   document.querySelectorAll('[data-view]').forEach(link=>link.classList.toggle('active',link.dataset.view===view));
   $('breadcrumb-view').textContent = view[0].toUpperCase()+view.slice(1);
@@ -30,6 +36,21 @@ $('show-chain').addEventListener('change',()=>{document.body.dataset.onchain=Str
 function tag(value) { return `<span class="state ${['approval','queued','submitted','confirmed'].includes(value)?'pending':['failed','rejected'].includes(value)?'failed':''}">${esc(value==='approval'?'Needs your approval':value==='delivered'?'Delivered':value)}</span>`; }
 function txLink(hash,label='View transaction ↗') { return state.explorer && hash ? `<a class="onchain onchain-link" target="_blank" rel="noreferrer" href="${state.explorer}/tx/${esc(hash)}">${esc(label)}</a>` : ''; }
 function empty(title,subtitle='') { return `<div class="empty">${esc(title)}<span>${esc(subtitle)}</span></div>`; }
+function renderDesk(){
+ if(!state)return;
+ $('desk-agents').innerHTML=`<button class="desk-agent ${selectedAgent==='all'?'selected':''}" data-agent-filter="all">All departments</button>`+state.team.map(dept=>{const expiry=dept.identity?Math.max(0,Number(dept.identity.expiry)-Date.now()/1000):null;return `<button class="desk-agent ${selectedAgent===dept.id?'selected':''}" data-agent-filter="${dept.id}"><span class="agent-icon ${dept.id}">${icons[dept.id]}</span><strong>${esc(dept.name)}</strong><small>${esc(dept.ensName||(state.mode==='simulated'?'Simulated identity':'No ENS identity'))}</small><small>${esc(dept.identity?.status||'Ready')} · ${money(dept.remaining)} left</small><small>${expiry===null?'':`Contract: ${Math.floor(expiry/86400)}d ${Math.floor(expiry%86400/3600)}h ${Math.floor(expiry%3600/60)}m left`}</small></button>`}).join('');
+ const events=[...workEvents.values()].filter(row=>selectedAgent==='all'||row.department===selectedAgent).sort((a,b)=>a.id-b.id).slice(-150);
+ $('desk-timeline').innerHTML=events.length?events.map(row=>{const hash=row.data?.hash,base=row.data?.network==='sepolia'?'https://sepolia.etherscan.io':row.data?.network==='whitechain'?state.explorer:null;return `<article class="desk-entry ${row.kind==='refused'||row.kind==='declined'?'desk-refusal':''}"><div><strong>${esc(row.department==='company'?'EnsWhite':state.team.find(x=>x.id===row.department)?.name)}</strong><time>${new Date(row.time).toLocaleTimeString()}</time></div><p>${esc(row.message)}</p>${base&&/^0x[0-9a-f]{64}$/i.test(hash||'')?`<a target="_blank" rel="noreferrer" href="${base}/tx/${hash}">View transaction ↗</a>`:''}<small>${esc(row.kind.replaceAll('_',' '))}</small></article>`}).join(''):empty('Your employees will explain their work here.','Start a mission to see real quotes, checks, approvals and receipts.');
+}
+function connectActivity(){
+ if(activityStream)return;
+ const after=Math.max(0,...workEvents.keys());activityStream=new EventSource(routePrefix+'/api/activity/stream?after='+after);
+ activityStream.onopen=()=>{$('desk-connection').textContent='Live work log'};
+ activityStream.onerror=()=>{$('desk-connection').textContent='Reconnecting to work log'};
+ activityStream.onmessage=event=>{try{const row=JSON.parse(event.data);if(!Number.isSafeInteger(row.id))return;workEvents.set(row.id,row);if(workEvents.size>1000)workEvents.delete(Math.min(...workEvents.keys()));renderDesk()}catch{}};
+}
+document.addEventListener('click',event=>{const button=event.target.closest('[data-agent-filter]');if(button){selectedAgent=button.dataset.agentFilter;renderDesk()}});
+window.addEventListener('pagehide',()=>activityStream?.close());
 function renderTeam() {
   $('team-cards').innerHTML=state.team.map(dept=>{
     const percent=Math.min(100,Math.max(0,Number(dept.spent)/Number(dept.weekly)*100));
@@ -42,6 +63,7 @@ function renderTeam() {
       const remaining=identity?Math.max(0,Math.floor(Number(identity.expiry)-Date.now()/1000)):0;
       const panel=document.createElement('div');panel.className='ens-identity';
       panel.innerHTML=`<a class="text-link" target="_blank" rel="noreferrer" href="https://sepolia.app.ens.domains/${encodeURIComponent(dept.ensName)}">${esc(dept.ensName)} ↗</a><p class="micro">${identity?'Contract ends in '+Math.floor(remaining/86400)+'d '+Math.floor(remaining%86400/3600)+'h '+Math.floor(remaining%3600/60)+'m '+Math.floor(remaining%60)+'s':'Not hired, fired, or expired. Payments are blocked.'}</p><p class="micro">ENS status: ${esc(identity?.status||'Awaiting first update')}</p><div class="task-actions">${identity?`<button class="btn outline" data-ens-action="renew" data-label="${dept.id}">Renew 30 days</button><button class="btn reject" data-ens-action="fire" data-label="${dept.id}">Fire</button>`:`<button class="btn primary" data-ens-action="hire" data-label="${dept.id}">Hire for 30 days</button><button class="btn outline" data-ens-action="hire" data-term="300" data-label="${dept.id}">5-minute demo hire</button>`}</div>`;
+      if(identity){const id=document.createElement('details');id.className='employee-id';id.innerHTML=`<summary>Employee ID · non-transferable badge</summary><p><code>Owner: ${esc(identity.wallet)}<br>Token: ${esc(identity.tokenId)}</code></p><p><a href="https://sepolia.etherscan.io/address/${esc(identity.resolver)}" target="_blank" rel="noreferrer">Inspect resolver ↗</a></p><p class="micro">Live scoped roles: ${identity.roles?.status?'employee status ✓':'status unavailable'} · ${identity.roles?.financeBudget?'Finance weekly budget ✓':'Finance scope unavailable'}</p>${identity.hire?`<ol class="hire-steps"><li>${identity.hire.resolverDeployed?'✓':'?'} Resolver deployed</li><li>${identity.hire.badgeMinted?'✓':'?'} Employee badge registered</li><li>${identity.hire.financeRoleGranted?'✓':'?'} Finance role granted</li></ol><a target="_blank" rel="noreferrer" href="https://sepolia.etherscan.io/tx/${esc(identity.hire.hash)}">Hire transaction ↗</a>`:''}<p class="micro">ERC-8004 / ENSIP-25: ${esc(identity.discovery?.binding?.verified?'Verified identity binding':identity.discovery?.binding?.reason||'Not configured')}</p>`;panel.append(id)}
       card.append(panel);
     });
   }
@@ -62,7 +84,7 @@ function taskCard(task,approval=false) {
       delivery=`<div class="task-result"><img src="${url}" alt="Campaign banner delivered by PixelPress"></div>`;
     } else delivery=`<div class="task-result">${esc(task.result.content)}</div>`;
   }
-  return `<article class="task-card"><div class="task-top"><span class="agent-icon ${dept?.id||''}">${icons[vendor?.id]||'↗'}</span><div><h3>${esc(vendor?.service)} <span>· ${money(task.amount)}</span></h3><p>${esc(dept?.name)} → ${esc(vendor?.name)} · Independent vendor</p></div>${tag(task.state)}</div><p class="task-brief">${esc(task.task)}</p>${delivery}<div class="task-footer"><span>${task.error?esc(task.error):task.result?esc(task.result.source):approval?'Above '+money(dept.approval)+' approval threshold. No payment has been signed.':'Funds reserved. The vendor delivers after payment confirmation.'}</span>${approval?`<div class="task-actions"><button class="btn reject" data-decision="false" data-task="${task.id}">Decline</button><button class="btn primary" data-decision="true" data-task="${task.id}">Approve ${money(task.amount)} →</button></div>`:txLink(job?.hash)}</div></article>`;
+  return `<article class="task-card"><div class="task-top"><span class="agent-icon ${dept?.id||''}">${icons[vendor?.id]||'↗'}</span><div><h3>${esc(vendor?.service)} <span>· ${money(task.amount)}</span></h3><p>${esc(dept?.name)} → ${esc(vendor?.name)} · Independent vendor</p></div>${tag(task.state)}</div><details class="task-brief"><summary>Vendor brief</summary><p>${esc(task.task)}</p></details>${delivery}<div class="task-footer"><span>${task.error?esc(task.error):task.result?'Delivery received after payment verification.':approval?'Above '+money(dept.approval)+' approval threshold. No payment has been signed.':'Funds reserved. The vendor delivers after payment confirmation.'}</span>${approval?`<div class="task-actions"><button class="btn reject" data-decision="false" data-task="${task.id}">Decline</button><button class="btn primary" data-decision="true" data-task="${task.id}">Approve ${money(task.amount)} →</button></div>`:txLink(job?.hash)}</div></article>`;
 }
 function renderTasks() {
   for(const image of images) URL.revokeObjectURL(image); images=[];
@@ -74,7 +96,7 @@ function renderTasks() {
     const task=state.tasks.find(t=>t.id===row.task_id), vendor=state.vendors.find(v=>v.id===task?.vendor);
     return `<div class="activity-row"><span>${row.approved?'Approved':'Declined'} ${esc(vendor?.name)} · ${money(task?.amount)}<small>Founder decision · ${new Date(row.created_at*1000).toLocaleString()}</small></span>${tag(row.approved?'approved':'rejected')}</div>`;
   }).join(''):empty('Your decisions will leave a trail.');
-  $('mission-history').innerHTML=state.missions.slice(0,3).map(row=>`<div class="history-item"><strong>${esc(row.title)}</strong><br>${esc(row.source)}</div>`).join('');
+  $('mission-history').innerHTML=state.missions.slice(0,3).map(row=>`<div class="history-item"><strong>${esc(row.title)}</strong><br>${row.kit_ready?`<a class="text-link" href="${routePrefix}/kit/${encodeURIComponent(row.id)}">Open your Campaign Kit ↗</a>`:'Marketing is assembling the commissioned work.'}</div>`).join('');
 }
 function renderBooks() {
   const total=state.ledger.reduce((sum,row)=>sum+BigInt(row.amount),0n),fees=state.ledger.reduce((sum,row)=>sum+BigInt(row.fee),0n);
@@ -86,28 +108,30 @@ function renderBooks() {
   $('finance-flags').innerHTML=state.finance.flags.length?`<div class="section-header"><h2>Finance review</h2></div>`+state.finance.flags.map(flag=>`<div class="history-item">${esc(flag.message)}<br><code>${esc(flag.requestId.slice(0,20))}…</code></div>`).join(''):'';
 }
 function renderVendors() {
-  $('vendor-cards').innerHTML=state.vendors.map(vendor=>`<article class="team-card"><div class="agent-heading"><span class="agent-icon">${icons[vendor.id]}</span><span class="tiny-tag">INDEPENDENT VENDOR</span></div><h3>${vendor.name}</h3><div class="vendor-service">${vendor.service}</div><p class="description">Paid per task. Delivery after independently verified payment.</p><div class="vendor-price">${money(vendor.price)}<small>per task · 1% platform fee included</small></div><a class="text-link vendor-link" target="_blank" rel="noreferrer" href="${vendor.earningsUrl}">Open vendor earnings ↗</a><code class="onchain">${vendor.address}<br>Node process · port ${vendor.port}</code></article>`).join('');
+  $('vendor-cards').innerHTML=state.vendors.map(vendor=>`<article class="team-card"><div class="agent-heading"><span class="agent-icon">${icons[vendor.id]}</span><span class="tiny-tag">INDEPENDENT VENDOR</span></div><h3>${vendor.name}</h3><div class="vendor-service">${vendor.service}</div><p class="description">Paid per task. Delivery after independently verified payment.</p><div class="vendor-price">${money(vendor.price)}<small>per task · 1% platform fee included</small></div><a class="text-link vendor-link" target="_blank" rel="noreferrer" href="${routePrefix}/vendors/${vendor.id}">Open vendor earnings ↗</a><code class="onchain">${vendor.address}<br>Node process · port ${vendor.port}</code></article>`).join('');
 }
 async function refresh() {
   state=await api('/state');$('login').hidden=true;
+  for(const [key,value] of Object.entries(state.business||{})){const input=businessForm.elements.namedItem(key);if(input&&document.activeElement!==input)input.value=value}
+  (state.activity||[]).forEach(row=>workEvents.set(row.id,row));renderDesk();connectActivity();
   if(refreshError)status('Connected. Showing confirmed company state.');
   $('ens-controls').hidden=!state.ens?.enabled;
   const branding=state.ens?.branding;
   $('ens-company-brand').textContent=branding?`${branding.name} · ${state.ens.companyName}`:(state.ens?.companyName||'');
   if(branding?.url){const link=document.createElement('a');link.href=branding.url;link.target='_blank';link.rel='noreferrer';link.textContent=' · Company profile ↗';$('ens-company-brand').append(link)}
-  if(branding){
-    document.querySelector('.workspace-switch strong').textContent=branding.name;
-    document.querySelector('.breadcrumb').firstChild.textContent=branding.name+' ';
-    document.querySelector('.founder-profile div span').textContent='Owner · '+branding.name;
+  if(state.business||branding){
+    document.querySelector('.workspace-switch strong').textContent=state.business?.name||branding.name;
+    document.querySelector('.breadcrumb').firstChild.textContent=(state.business?.name||branding.name)+' ';
+    document.querySelector('.founder-profile div span').textContent='Owner · '+(state.business?.name||branding.name);
     const avatar=document.querySelector('.company-avatar');
-    if(branding.avatar){avatar.replaceChildren(Object.assign(document.createElement('img'),{src:branding.avatar,alt:branding.name+' company avatar'}))}else{avatar.textContent=branding.name.slice(0,1)}
+    if(branding?.avatar){avatar.replaceChildren(Object.assign(document.createElement('img'),{src:branding.avatar,alt:branding.name+' company avatar'}))}else{avatar.textContent=(state.business?.name||branding.name).slice(0,1)}
   }
   $('ens-writes').innerHTML=(state.ens?.writes||[]).slice(0,6).map(row=>`<p class="micro">${esc(row.label)} · ${esc(row.key)} → ${esc(row.value)} · ${esc(row.state)} ${row.hash?`<a target="_blank" rel="noreferrer" href="https://sepolia.etherscan.io/tx/${esc(row.hash)}">View ENS edit ↗</a>`:''}${row.error?'<br>'+esc(row.error):''}</p>`).join('');
   $('cash').textContent=money(state.companyBalance);
   $('team-balance').textContent=money(state.team.reduce((sum,d)=>sum+BigInt(d.balance),0n));
   $('vendor-spend').textContent=money(state.ledger.reduce((sum,row)=>sum+BigInt(row.amount),0n));
   $('receipt-count').textContent=state.ledger.length+' verifiable receipts';
-  $('environment').textContent=state.mode==='simulated'?'Local simulation':'Testnet settlement';
+  $('environment').textContent=(state.mode==='simulated'?'Local simulation':'Testnet settlement')+' · '+(state.aiMode.startsWith('offline')?'Offline mode':'AI configured');
   $('disclosure').textContent=state.mode==='simulated'?'Fiat and transfers are simulated locally. No real money or onchain transaction occurs.':'Razorpay test mode. Fiat is simulated; vendor payments settle in test USDT on Whitechain.';
   const backing=state.topup,canCheckout=backing.canCheckout!==false;
   $('topup').disabled=busy||!canCheckout;$('topup').textContent=canCheckout?'+ Add ₹500':'Pool funding needed';

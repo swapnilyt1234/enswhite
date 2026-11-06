@@ -1,0 +1,14 @@
+**
+!Dockerfile
+!package.json
+!package-lock.json
+!app/
+!app/**
+!docs/
+!docs/deployments/
+!docs/deployments/enswhite-testnets.json
+!docs/deployments/agent-identities.json
+**/.env*
+**/*.key
+**/*.sqlite*
+**/*keystore*

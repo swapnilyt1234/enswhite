@@ -2,7 +2,7 @@ import { Contract, dnsEncode, keccak256 } from 'ethers';
 import { randomUUID } from 'node:crypto';
 import { populateENSTransaction } from './ens.js';
 
-export function createENSWriter(db,directory,getWallet) {
+export function createENSWriter(db,directory,getWallet,onConfirmed=()=>{}) {
   const provider=directory.provider;
   db.exec('CREATE TABLE IF NOT EXISTS ens_writes (id TEXT PRIMARY KEY,label TEXT NOT NULL,key TEXT NOT NULL,value TEXT NOT NULL,state TEXT NOT NULL,raw TEXT,hash TEXT,error TEXT,created_at INTEGER NOT NULL)');
   function queue(label,key,value,id=randomUUID()) {
@@ -49,6 +49,7 @@ export function createENSWriter(db,directory,getWallet) {
           }
           if(!receipt)break;
           db.prepare('UPDATE ens_writes SET state=?,error=? WHERE id=?').run(receipt.status===1?'confirmed':'failed',receipt.status===1?null:'Resolver rejected the delegated edit',row.id);
+          if(receipt.status===1)onConfirmed({label:row.label,key:row.key,value:row.value,hash:row.hash});
         }catch(error) {
           if(!row.raw&&error.message==='Employee is fired or expired') {
             db.prepare("UPDATE ens_writes SET state='failed',error='Employee is fired or expired' WHERE id=?").run(row.id);

@@ -4,16 +4,31 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createCompany, COMPANY_SCHEME } from './company.js';
 import { baseApp, sessionRoutes } from './http.js';
 import { NETWORK } from './chain.js';
+import { campaignKitHTML } from './campaign-kit.js';
+import { vendorHTML } from './vendor-page.js';
 
-export function createCompanyApp(company, origin) {
+export function createCompanyApp(company, origin, { guest = false } = {}) {
   const app = baseApp(origin);
   app.post('/api/webhooks/razorpay', express.raw({ type: 'application/json', limit: '128kb' }), async (req, res) => {
     if (company.gateway.mode !== 'razorpay' || !Buffer.isBuffer(req.body)) return res.status(403).json({ error: 'Razorpay webhook not enabled' });
     const result = await company.capture(req.body, req.get('x-razorpay-signature'));
     void company.processJobs().catch(() => {}); res.json(result);
   });
-  sessionRoutes(app, company, origin, { login: true });
+  sessionRoutes(app, company, origin, { login: !guest, guest });
   app.get('/api/state', async (req, res) => res.json(await company.state()));
+  app.post('/api/business',(req,res)=>res.json(company.updateBusiness(req.body)));
+  app.get('/api/kits/:id',(req,res)=>res.json(company.kit(req.params.id)));
+  app.get('/api/kits/:id/download',(req,res)=>res.type('html').set('Content-Disposition','attachment; filename="enswhite-campaign-kit.html"').send(campaignKitHTML(company.kit(req.params.id))));
+  app.get('/api/activity/stream',(req,res)=>{
+    let cursor=Number(req.get('last-event-id')||req.query.after||0);
+    if(!Number.isSafeInteger(cursor)||cursor<0)return res.status(400).json({error:'Invalid activity cursor'});
+    res.set({'Content-Type':'text/event-stream','Cache-Control':'no-cache, no-transform',Connection:'keep-alive','X-Accel-Buffering':'no'});res.flushHeaders();
+    const send=event=>{if(res.destroyed||event.id<=cursor)return;if(res.writableLength>262144){res.destroy();return}cursor=event.id;res.write(`id: ${event.id}\ndata: ${JSON.stringify(event)}\n\n`)};
+    const unsubscribe=company.activity.subscribe(send);
+    while(!res.destroyed){const rows=company.activity.since(cursor);rows.forEach(send);if(rows.length<200)break}
+    const heartbeat=setInterval(()=>res.write(': heartbeat\n\n'),15000);heartbeat.unref();
+    req.on('close',()=>{clearInterval(heartbeat);unsubscribe()});
+  });
   app.get('/api/vendors/:id/earnings',async(req,res)=>res.json(await company.vendorEarnings(req.params.id)));
   app.post('/api/ens/manage',async(req,res)=>res.json(await company.manageENS(req.body.action,req.body.label,req.body.term)));
   app.post('/api/ens/signup',async(req,res)=>res.json(await company.signupENS(req.body.label)));
@@ -31,6 +46,8 @@ export function createCompanyApp(company, origin) {
   });
   app.post('/api/x402/settle', async (req, res) => res.json(await company.settle(req.body.paymentPayload)));
   app.use('/api', (req, res) => res.status(404).json({ error: 'Endpoint not found' }));
+  app.get('/kit/:id',(req,res)=>res.sendFile(join(dirname(fileURLToPath(import.meta.url)),'company-public/kit.html')));
+  app.get('/vendors/:id',(req,res)=>{const vendor=company.vendors.find(v=>v.id===req.params.id);if(!vendor)return res.sendStatus(404);res.type('html').send(vendorHTML(vendor,{endpoint:`../api/vendors/${vendor.id}/earnings`,script:'../vendor-ui.js',ensName:vendor.ensName,mode:company.chain.mode}))});
   app.use(express.static(join(dirname(fileURLToPath(import.meta.url)), 'company-public')));
   app.use((error, req, res, next) => {
     if (res.headersSent) return next(error);

@@ -31,6 +31,29 @@ async function setup(t, options = {}) {
 }
 async function fund(company) { const order = await company.order(); await company.simulate(order.id); await company.processJobs(); return order; }
 
+test('Finance funds a shortfall once, explains its decision and preserves founder approval',async t=>{
+ const {company}=await setup(t);await fund(company);
+ // Existing company credit, with Marketing almost out of its earlier allocation.
+ await company.allocate();await company.processJobs();await fund(company);
+ company.db.prepare('UPDATE company_sim_balances SET units=? WHERE address=?').run('50000',company.departments[0].address.toLowerCase());
+ await company.mission('Launch our new collection','finance-shortfall-001');
+ for(let i=0;i<12;i++)await company.processJobs();
+ let state=await company.state();const banner=state.tasks.find(x=>x.vendor==='pixelpress');assert.equal(banner.state,'approval');
+ assert(state.budgetRequests.every(x=>x.state==='funded'));assert(state.activity.some(x=>x.kind==='budget_approved'&&/reviewed/.test(x.message)));
+ const allocations=company.db.prepare("SELECT COUNT(*) n FROM company_jobs WHERE id LIKE 'finance:%'").get().n;
+ await company.processJobs();assert.equal(company.db.prepare("SELECT COUNT(*) n FROM company_jobs WHERE id LIKE 'finance:%'").get().n,allocations);
+ assert.equal(state.tasks.filter(x=>x.vendor==='pixelpress'&&x.state==='delivered').length,0);
+});
+
+test('Finance refuses a request that would exceed its 50 USDT weekly ceiling',async t=>{
+ const {company}=await setup(t);await fund(company);await company.allocate();await company.processJobs();
+ company.db.prepare('UPDATE company_sim_balances SET units=? WHERE address=?').run('0',company.departments[0].address.toLowerCase());
+ company.db.prepare("INSERT INTO company_jobs(id,kind,data,state,created_at) VALUES('prior-allocation','allocation',?,'confirmed',?)").run(JSON.stringify({dept:company.departments[0].address,amount:'50000000',week:Math.floor(Date.now()/604800000)}),Math.floor(Date.now()/1000));
+ await company.mission('Launch within our limits','finance-ceiling-001');await company.processJobs();
+ const state=await company.state();assert(state.budgetRequests.some(x=>x.dept==='marketing'&&x.state==='declined'));assert(state.activity.some(x=>x.kind==='declined'&&/50 test USDT/.test(x.message)));
+ assert.equal(company.db.prepare("SELECT COUNT(*) n FROM company_jobs WHERE id LIKE 'finance:%'").get().n,0);
+});
+
 test('founder tops up, Finance allocates, departments pay three vendors, approvals and books reconcile', async t => {
   const { company, vendors } = await setup(t);
   const order = await fund(company);
@@ -54,6 +77,10 @@ test('founder tops up, Finance allocates, departments pay three vendors, approva
   assert.equal(state.feePool, '4000');
   assert.equal(state.team[0].balance, '2700000');
   assert.equal(state.team[1].balance, '1400000');
+  const kit=company.kit(state.missions[0].id);
+  assert.equal(kit.receipts.length,3);assert.match(kit.memo,/0.004/);
+  const headline=kit.copy.split('\n')[0];assert(kit.banner.includes(headline));
+  assert(state.activity.some(x=>x.kind==='headline_handoff'));assert(state.activity.some(x=>x.kind==='kit_delivered'));
   assert((await company.csv()).includes('PixelPress,0.2,0.002,0.198,20.00'));
   assert.equal((await company.vendorEarnings('copydesk')).netUnits,'99000');
   await assert.rejects(company.vendorEarnings('unknown'),/Unknown vendor/);
@@ -68,9 +95,11 @@ test('founder tops up, Finance allocates, departments pay three vendors, approva
 
 test('unfunded missions resume safely and approval rejection releases the reservation', async t => {
   const { company } = await setup(t);
-  await assert.rejects(company.mission('Launch the spring collection', 'mission-retry-001'), /allocation/);
+  await company.mission('Launch the spring collection', 'mission-retry-001');
+  await company.processJobs();assert((await company.state()).budgetRequests.some(x=>x.state==='waiting'));
   await fund(company); await company.allocate(); await company.processJobs();
   await company.mission('Launch the spring collection', 'mission-retry-001');
+  await company.processJobs();
   let state = await company.state();
   const banner = state.tasks.find(row => row.vendor === 'pixelpress');
   const before = state.team[0].remaining;
@@ -137,11 +166,15 @@ test('company founder login and state-changing requests require the password and
   server.on('request',createCompanyApp(company,'  '+origin+'  '));
   t.after(()=>new Promise(resolve=>server.close(resolve)));
   assert.equal((await fetch(origin+'/api/state')).status,401);
+  assert.equal((await fetch(origin+'/api/activity/stream')).status,401);
   let response=await fetch(origin+'/api/login',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({password:'wrong'})});
   assert.equal(response.status,401);
   response=await fetch(origin+'/api/login',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({password:'long-founder-password'})});
   assert.equal(response.status,200);
   const cookie=response.headers.get('set-cookie').split(';')[0];
   assert.equal((await fetch(origin+'/api/state',{headers:{Cookie:cookie}})).status,200);
+  company.activity.record('marketing','plan_decided','I am planning this campaign.');company.activity.record('marketing','refused','I cannot override my spending limit.');
+  const stream=await fetch(origin+'/api/activity/stream',{headers:{Cookie:cookie,'Last-Event-ID':'1'}}),reader=stream.body.getReader();
+  const replay=new TextDecoder().decode((await reader.read()).value);assert.match(replay,/id: 2/);assert(!replay.includes('id: 1\n'));await reader.cancel();
   assert.equal((await fetch(origin+'/api/orders',{method:'POST',headers:{Cookie:cookie,Origin:'https://evil.example'}})).status,403);
 });

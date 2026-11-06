@@ -1,0 +1,8 @@
+const prefix=location.pathname.startsWith('/guest/')?'/guest':location.pathname.startsWith('/owner/')?'/owner':'';
+const id=location.pathname.split('/').pop(),esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+try{
+ const response=await fetch(prefix+'/api/kits/'+encodeURIComponent(id));const kit=await response.json();if(!response.ok)throw new Error(kit.error||'Sign in to open this Campaign Kit');
+ document.getElementById('kit-state').textContent=kit.business+' · '+kit.title;
+ document.getElementById('kit-content').innerHTML=`<a class="btn primary" href="${prefix}/api/kits/${encodeURIComponent(id)}/download" download>Download Campaign Kit ↓</a>${kit.banner?'<img id="kit-banner" alt="The campaign banner delivered by PixelPress">':''}<section><h2>Campaign copy</h2><p class="kit-copy">${esc(kit.copy||'No copy commissioned')}</p></section><section><h2>Customer help</h2><p class="kit-copy">${esc(kit.faq||'No translated help commissioned')}</p></section><section><h2>Finance memo</h2><p>${esc(kit.memo)}</p>${kit.receipts.map(r=>`<p>${esc(r.vendor)} · ${esc(r.gross)} test USDT ${r.url?`<a target="_blank" rel="noreferrer" href="${esc(r.url)}">Verified receipt ↗</a>`:'· simulated receipt'}</p>`).join('')}</section><p class="micro">Fiat is simulated. Test USDT has no real monetary value.</p>`;
+ if(kit.banner){const url=URL.createObjectURL(new Blob([kit.banner],{type:'image/svg+xml'}));document.getElementById('kit-banner').src=url;window.addEventListener('pagehide',()=>URL.revokeObjectURL(url))}
+}catch(error){document.getElementById('kit-state').textContent=error.message}

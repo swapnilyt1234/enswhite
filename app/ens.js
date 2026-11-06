@@ -1,4 +1,5 @@
-import { Contract, Interface, JsonRpcProvider, getAddress, keccak256, namehash, toUtf8Bytes, parseEther } from 'ethers';
+import { Contract, Interface, FetchRequest, JsonRpcProvider, getAddress, keccak256, namehash, toUtf8Bytes, parseEther } from 'ethers';
+import {identityManifest,identityContract,verifyAgentBinding} from './agent-identity.js';
 export const WHITECHAIN_COIN_TYPE = 2147485522;
 export const IDENTITY_TYPES = { Identity: [
   {name:'requestId',type:'bytes32'},{name:'dept',type:'address'},{name:'vendor',type:'address'},
@@ -41,8 +42,11 @@ export function createENSDirectory(env = process.env, connection) {
   if (!env.ENS_COMPANY_NAME || !env.ENS_COMPANY_REGISTRY || !env.ENS_REGISTRY_BLOCK) throw new Error('Configure the ENS company name, registry and deployment block');
   const url = env.SEPOLIA_RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com';
   if (new URL(url).protocol !== 'https:') throw new Error('Sepolia RPC must use HTTPS');
-  const provider = connection || new JsonRpcProvider(url, 11155111, { cacheTimeout: 0 });
+  const request=new FetchRequest(url);request.timeout=10000;
+  const provider = connection || new JsonRpcProvider(request, 11155111, { cacheTimeout: 0 });
   const registry = new Contract(env.ENS_COMPANY_REGISTRY, ENS_REGISTRY_ABI, provider);
+  const registrations=identityManifest();
+  const hireReceipts=new Map();
   async function resolver(name) {
     if ((await provider.getNetwork()).chainId !== 11155111n) throw new Error('ENS must resolve on Sepolia');
     const result = await provider.getResolver(name);
@@ -60,7 +64,10 @@ export function createENSDirectory(env = process.env, connection) {
     ]);
     if (!wallet || !/^\d+$/.test(weekly || '') || !/^\d+$/.test(perCall || '')) throw new Error('Employee records are incomplete');
     if (getAddress(wallet) !== getAddress(state.latestOwner)) throw new Error('Employee token owner and wallet differ');
-    return { name, node: namehash(name), wallet: getAddress(wallet), expiry: String(state.expiry), weekly, perCall, status:status||'', vendors: (vendors || '').split(',').map(x=>x.trim()).filter(Boolean), tokenId: String(state.tokenId), resolver: r.address };
+    const identity={ name, node: namehash(name), wallet: getAddress(wallet), expiry: String(state.expiry), weekly, perCall, status:status||'', vendors: (vendors || '').split(',').map(x=>x.trim()).filter(Boolean), tokenId: String(state.tokenId), resolver: r.address };
+    const entry=registrations.find(x=>x.name===name);
+    identity.discovery={context:await r.getText('agent-context'),web:await r.getText('agent-endpoint[web]'),binding:entry?await verifyAgentBinding(identity,entry,key=>r.getText(key),identityContract(provider)).catch(()=>({verified:false,reason:'Identity registry verification unavailable'})):{verified:false,reason:'ERC-8004 registration not configured'}};
+    return identity;
   }
   return {
     employee,
@@ -106,12 +113,21 @@ export function createENSDirectory(env = process.env, connection) {
       if (!Number.isSafeInteger(start) || start < 1) throw new Error('Invalid ENS deployment block');
       const labels = new Map();
       for (let block=start;block<=end;block+=2000) {
-        for (const event of await registry.queryFilter(registry.filters.LabelRegistered(), block, Math.min(block+1999,end))) labels.set(event.args.labelHash,event.args.label);
+        for (const event of await registry.queryFilter(registry.filters.LabelRegistered(), block, Math.min(block+1999,end))) labels.set(event.args.labelHash,{label:event.args.label,hash:event.transactionHash});
       }
       const result=[];
-      for (const label of labels.values()) {
+      const financeRecord=await employee('finance').catch(()=>null),finance=financeRecord?.wallet;
+      for (const {label,hash} of labels.values()) {
         const state=await registry.getState(BigInt(keccak256(toUtf8Bytes(label))));
-        if (Number(state.status)===2 && Number(state.expiry)>Date.now()/1000) result.push(await employee(label));
+        if (Number(state.status)===2 && Number(state.expiry)>Date.now()/1000){
+          const identity=label==='finance'&&financeRecord?financeRecord:await employee(label),permissions=new Contract(identity.resolver,['function hasRoles(uint256,uint256,address) view returns(bool)'],provider);
+          const [statusRole,budgetRole]=await Promise.all([permissions.hasRoles(BigInt(keccak256(toUtf8Bytes('enswhite.status'))),16,identity.wallet),finance?permissions.hasRoles(BigInt(keccak256(toUtf8Bytes('enswhite.budget.weekly'))),16,finance):false]);identity.roles={status:statusRole,financeBudget:budgetRole};
+          if(!hireReceipts.has(hash)){const receipt=await provider.getTransactionReceipt(hash);if(receipt)hireReceipts.set(hash,receipt)}
+          const receipt=hireReceipts.get(hash),events=new Interface(['event EmployeeHired(bytes32 indexed companyHash,string label,address wallet,address resolver,uint64 expiry)','event EACRolesChanged(uint256 indexed resource,address indexed account,uint256 oldRoleBitmap,uint256 newRoleBitmap)']);
+          const parsed=receipt?.logs.map(log=>{try{return {...events.parseLog(log),address:log.address}}catch{return null}}).filter(Boolean)||[];
+          identity.hire={hash,resolverDeployed:parsed.some(x=>x.name==='EmployeeHired'&&x.args.resolver.toLowerCase()===identity.resolver.toLowerCase()&&x.args.wallet.toLowerCase()===identity.wallet.toLowerCase()),badgeMinted:true,financeRoleGranted:parsed.some(x=>x.name==='EACRolesChanged'&&x.address.toLowerCase()===identity.resolver.toLowerCase()&&x.args.account.toLowerCase()===finance?.toLowerCase()&&x.args.resource===BigInt(keccak256(toUtf8Bytes('enswhite.budget.weekly')))&&(x.args.newRoleBitmap&16n)!==0n)};
+          result.push(identity);
+        }
       }
       return result;
     },

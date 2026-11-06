@@ -8,6 +8,13 @@ import {Grant} from "@ensdomains/contracts-v2/access-control/interfaces/IEACGran
 import {VendorRegistrar} from "../src/VendorRegistrar.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 interface IBrandText {function resolve(bytes calldata,bytes calldata) external view returns(bytes memory);}
+interface IAgentRegistry {
+    function register() external returns(uint256);
+    function ownerOf(uint256) external view returns(address);
+    function getAgentWallet(uint256) external view returns(address);
+    function setAgentURI(uint256,string calldata) external;
+    function tokenURI(uint256) external view returns(string memory);
+}
 
 contract EnsWhiteNamesTest is Test,ERC1155Holder {
     function testForkHireScopedFinanceNontransferableAndFire() public {
@@ -32,6 +39,28 @@ contract EnsWhiteNamesTest is Test,ERC1155Holder {
         vm.prank(address(2));vm.expectRevert();IEmployeeResolver(resolver).setText(dns,"enswhite.vendors","evil.eth");
         vm.prank(address(1));IEmployeeResolver(resolver).setText(dns,"enswhite.status","working");
         vm.prank(address(1));vm.expectRevert();IEmployeeResolver(resolver).setText(dns,"enswhite.budget.weekly","9999999");
+        names.setAgentMetadata(hash,"marketing","agent-context","Marketing for Acme. Payments remain subject to employment and spending policies.");
+        vm.prank(address(2));vm.expectRevert("Not founder");names.setAgentMetadata(hash,"marketing","agent-context","spoofed");
+        vm.expectRevert("Discovery key only");names.setAgentMetadata(hash,"marketing","enswhite.vendors","evil.eth");
+        EnsWhiteNames replacement=new EnsWhiteNames(address(factory),root,impl,0x115eb53F0c60696633855F90b138178Fb40b2b2C,hex"08656e7377686974650365746800");
+        vm.prank(address(99));vm.expectRevert("Not parent token owner");replacement.adoptCompany("acme",address(2));
+        address replacementRegistry=replacement.adoptCompany("acme",address(2));
+        assertTrue(replacementRegistry!=company);
+        // Preparing discovery does not replace the active directory.
+        assertEq(address(IPermissionedRegistry(root).getSubregistry("acme")),company);
+        IAgentRegistry agents=IAgentRegistry(0x8004A818BFB912233c491871b3d84c89A494BD9e);
+        vm.prank(address(1));uint256 agentId=agents.register();
+        assertEq(agents.ownerOf(agentId),address(1));assertEq(agents.getAgentWallet(agentId),address(1));
+        vm.prank(address(1));agents.setAgentURI(agentId,"data:application/json;base64,e30=");
+        assertEq(agents.tokenURI(agentId),"data:application/json;base64,e30=");
+        address newResolver=replacement.hire(hash,"marketing",address(1),30 days,"4000000","500000","copydesk.vendors.enswhite.eth");
+        string memory binding=string.concat("agent-registration[0x0001000003aa36a7148004a818bfb912233c491871b3d84c89a494bd9e][",vm.toString(agentId),"]");
+        replacement.setAgentMetadata(hash,"marketing",binding,"1");
+        IPermissionedRegistry(root).setSubregistry(uint256(hash),IPermissionedRegistry(replacementRegistry));
+        assertEq(abi.decode(IBrandText(newResolver).resolve(dns,abi.encodeWithSignature("text(bytes32,string)",bytes32(0),binding)),(string)),"1");
+        replacement.fire(hash,"marketing");
+        address rehired=replacement.hire(hash,"marketing",address(1),30 days,"4000000","500000","copydesk.vendors.enswhite.eth");
+        assertEq(abi.decode(IBrandText(rehired).resolve(dns,abi.encodeWithSignature("text(bytes32,string)",bytes32(0),binding)),(string)),"1");
         uint256 label=uint256(keccak256("marketing"));
         IPermissionedRegistry.State memory state=IPermissionedRegistry(company).getState(label);
         assertEq(state.latestOwner,address(1));

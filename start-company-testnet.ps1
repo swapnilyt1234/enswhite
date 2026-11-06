@@ -21,7 +21,7 @@ try {
         $ens=Get-Content -LiteralPath 'data/ens/runtime.json' -Raw | ConvertFrom-Json
         foreach($key in @('ENS_ENABLED','ENS_PARENT_NAME','ENS_COMPANY_NAME','ENS_COMPANY_REGISTRY','ENS_REGISTRY_BLOCK','ENS_NAMES_ADDRESS','SEPOLIA_RPC_URL')){[Environment]::SetEnvironmentVariable($key,[string]$ens.$key,'Process')}
         Write-Host "ENSv2 policy mode: $($ens.ENS_COMPANY_NAME). All vendor payments require fresh Sepolia resolution."
-        Write-Host 'Employees automatically sign their own ENS status updates. Finance signs founder-requested weekly-budget edits up to 50 test USDT. All ENS writes share a saved sequential queue: at most 48 per UTC day, 1 million gas and 0.0001 Sepolia ETH execution fee per edit.'
+        Write-Host 'Employees automatically sign their own ENS status updates. Finance signs founder-requested and purchase-shortfall weekly-budget edits up to 50 test USDT, allocating only available company credit; hard daily, per-call and founder approval limits remain. All ENS writes share a saved sequential queue: at most 48 per UTC day, 1 million gas and 0.0001 Sepolia ETH execution fee per edit.'
         Write-Host 'Keep department Sepolia ETH funded. Do not run finance-budget.js or other department signing tools while this server is running.'
     }
     $env:RELAY_COMPANY_ADDRESS=$deployment.address;$env:COMPANY_DEPLOYMENT_BLOCK=[string]$deployment.block
