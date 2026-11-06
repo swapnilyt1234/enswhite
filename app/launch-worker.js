@@ -3,20 +3,20 @@ import {existsSync} from 'node:fs';
 import {resolve,join} from 'node:path';
 import {homedir} from 'node:os';
 import {randomUUID,randomBytes} from 'node:crypto';
-import {Wallet,Contract,ContractFactory,JsonRpcProvider,FetchRequest,keccak256,toUtf8Bytes} from 'ethers';
+import {Wallet,Contract,ContractFactory,keccak256,toUtf8Bytes} from 'ethers';
 import {createLaunchStore} from './launch-store.js';
 import {createProvisionSender} from './provision-sender.js';
 import {openStore} from './payments.js';
 import {walletStore,DEPARTMENTS,VENDORS} from './company-store.js';
 import {IDENTITY_REGISTRY,AGENT_ABI,registrationURI,registrationKey,agentRegistration} from './agent-identity.js';
 import {TOKEN} from './chain.js';
+import {createTestnetProvider} from './testnet-provider.js';
 import {createENSDirectory} from './ens.js';
 
 const root=resolve('data/launch'),queue=createLaunchStore(root),db=queue.db,instance=randomUUID();let stopping=false,timer;
 const runtime=JSON.parse(await readFile('data/ens/runtime.json','utf8'));
 if(!process.env.APP_ORIGIN||new URL(process.env.APP_ORIGIN).origin!==process.env.APP_ORIGIN||!process.env.APP_ORIGIN.startsWith('https://'))throw new Error('Existing HTTPS origin required');
-const provider=url=>{const request=new FetchRequest(url);request.timeout=10000;return new JsonRpcProvider(request,undefined,{cacheTimeout:0})};
-const sepolia=provider(runtime.SEPOLIA_RPC_URL),whitechain=provider('https://rpc.testnet.whitechain.io');
+const sepolia=createTestnetProvider(runtime.SEPOLIA_RPC_URL,11155111),whitechain=createTestnetProvider('https://rpc.testnet.whitechain.io',1874);
 function lease(){const row=db.prepare('SELECT * FROM launch_worker WHERE id=1').get();if(stopping||row?.instance!==instance||row.heartbeat<Date.now()-30000)throw new Error('Launch worker lease lost')}
 try{
  const old=db.prepare('SELECT * FROM launch_worker WHERE id=1').get();if(old?.heartbeat>Date.now()-30000)throw new Error('Another launch worker is active');
@@ -71,7 +71,7 @@ try{
    config={...config,...runtime,CHAIN_MODE:'testnet',PAYMENT_MODE:'razorpay',COMPANY_DATA_DIR:directory,COMPANY_ROLES:JSON.stringify(roles),ENS_ENABLED:'true',ENS_COMPANY_NAME:`${job.label}.${runtime.ENS_PARENT_NAME}`,ENS_COMPANY_REGISTRY:info.registry,ENS_REGISTRY_BLOCK:String(launched.blockNumber),ENS_IDENTITY_FILE:identities,RELAY_COMPANY_ADDRESS:bank.target,COMPANY_DEPLOYMENT_BLOCK:String(deployed.blockNumber),TREASURY_ADDRESS:owner.address,VISITOR_COMPANY:'true'};
    await writeFile(configFile+'.next',JSON.stringify(config),{mode:0o600});await rename(configFile+'.next',configFile);
    store.db.prepare('INSERT OR REPLACE INTO settings VALUES(?,?)').run('business_profile',JSON.stringify({name:job.name,description:job.description,audience:'Customers of '+job.name,language:'Hindi'}));
-   const check=createENSDirectory(config);try{for(const role of roles){const identity=await check.employee(role);if(!identity.discovery.binding.verified||identity.wallet!==getWallet(role,'department').address)throw new Error('New employee ENS/identity verification failed')}}finally{check.close()}
+   const check=createENSDirectory(config,sepolia);try{for(const role of roles){const identity=await check.employee(role);if(!identity.discovery.binding.verified||identity.wallet!==getWallet(role,'department').address)throw new Error('New employee ENS/identity verification failed')}}finally{check.close()}
    const approvedFile=join(root,'approved-companies.json'),approved=existsSync(approvedFile)?JSON.parse(await readFile(approvedFile,'utf8')):[];
    if(!approved.some(x=>x.address.toLowerCase()===String(bank.target).toLowerCase())){approved.push({address:bank.target,block:deployed.blockNumber});await writeFile(approvedFile+'.next',JSON.stringify(approved));await rename(approvedFile+'.next',approvedFile)}
    db.prepare("UPDATE launches SET state='ready',config=?,error=NULL WHERE id=?").run(configFile,job.id);
