@@ -38,6 +38,95 @@
       "vendors-parent": "0xb78a6cfb19e9aa5c7a43fa8699b11e7e0461fde771bd34b9e069ceef217b54f5",
       "vendors-registrar-role": "0xd3a78bc9261d0ad997847a5a0094da0f6bb4ca89fd86203c539f73a52e041c43",
       "vendors-registry": "0xaaa0218a2c7b1ddc8327d41b5d9d8171c3e55f9ad111b79172950fb6f3cb001d"
+    },
+    "delegatedWrites": [
+      {
+        "label": "marketing",
+        "key": "enswhite.status",
+        "value": "active",
+        "hash": "0x3005df8adb3eb53a067050b88d8c3ea359e95b30516af02df8065ad5bf3427f1",
+        "signer": "0x19763ddB900d7C02Eed1b4B8bDE6C26cDd8c8c00"
+      },
+      {
+        "label": "support",
+        "key": "enswhite.status",
+        "value": "active",
+        "hash": "0x7b05b970723beb5eda79a4db037b37a492df7eef64d89e15cebeb263f3b2e9b1",
+        "signer": "0x8185a737A3f00C5Fb53a9bf7EC1d703FE4450713"
+      },
+      {
+        "label": "finance",
+        "key": "enswhite.status",
+        "value": "active",
+        "hash": "0x1d99909658ec52915ffce1a36fd95ec2bd62d49a92a41673ece41602b52aefeb",
+        "signer": "0x2Ddb644510DEB6AdC81E8cB440E7E80045458173"
+      },
+      {
+        "label": "marketing",
+        "key": "enswhite.status",
+        "value": "awaiting approval",
+        "hash": "0xc39fbeae535b748ed19a0c8830d7e3e1f9498271612982ebc3fc49ccbb2e1606",
+        "signer": "0x19763ddB900d7C02Eed1b4B8bDE6C26cDd8c8c00"
+      },
+      {
+        "label": "support",
+        "key": "enswhite.status",
+        "value": "working",
+        "hash": "0xe39856dd51ef092e4a54e20f3d177b947068238613f3d31dc53a46ba738ced4b",
+        "signer": "0x8185a737A3f00C5Fb53a9bf7EC1d703FE4450713"
+      },
+      {
+        "label": "marketing",
+        "key": "enswhite.status",
+        "value": "delivered",
+        "hash": "0x9bd2e668f9f19ebb725cfa1c2914b632ae9434133849917fd3373e8c803a025e",
+        "signer": "0x19763ddB900d7C02Eed1b4B8bDE6C26cDd8c8c00"
+      },
+      {
+        "label": "support",
+        "key": "enswhite.status",
+        "value": "delivered",
+        "hash": "0x78afc8e9a6baa839e5140b4d337d2efa9087474c630ddc2ed7c7be93d039845e",
+        "signer": "0x8185a737A3f00C5Fb53a9bf7EC1d703FE4450713"
+      },
+      {
+        "label": "marketing",
+        "key": "enswhite.budget.weekly",
+        "value": "4000000",
+        "hash": "0x3accfeaef63305ea8509f6ebe9ed9b5f0f522e78c4583d14a149de53916d73e0",
+        "signer": "0x2Ddb644510DEB6AdC81E8cB440E7E80045458173"
+      }
+    ],
+    "lifecycleDemo": {
+      "id": "demo-20261106-131807",
+      "transactions": [
+        {
+          "step": "signup",
+          "hash": "0x31571264c98c5090664f88ae2c2d89030d5406bdabb1dc0561fcbb8c3a0145e8",
+          "block": 12075192,
+          "method": "createCompany"
+        },
+        {
+          "step": "fire",
+          "hash": "0x487f2c2bc6bca15ca02163bc72e15f23873e2b5af03f37f5a1d70b927ac10cd9",
+          "block": 12075193,
+          "method": "fire"
+        },
+        {
+          "step": "hire-five-minutes",
+          "hash": "0x8c2a30d74339131651e2bddd85a99c26b0660ccea8933a4dd2ac768c84a4bd49",
+          "block": 12075194,
+          "method": "hire",
+          "termSeconds": 300
+        },
+        {
+          "step": "restore-thirty-days",
+          "hash": "0x58bb4e98c6000f0e5f77fd9e411c9d2d460c20283d0fb4bff5d251347477f191",
+          "block": 12075221,
+          "method": "hire",
+          "termSeconds": 2592000
+        }
+      ]
     }
   },
   "whitechain": {
@@ -45,6 +134,35 @@
     "company": "0xbca635f00C07681f10269f69ca293bDB6536D6aB",
     "deploymentBlock": 12353630,
     "deploymentTransaction": "0xeb137fd597b606c6c786f5ddbf3553bbde807121691ad4f6456c3da95599a3f5",
-    "poolFundingTransaction": "0x2f42648a93ecaa4809272f5ba78f0bcd7e52eceb112ef81abd6b6c8a4edf17bc"
+    "poolFundingTransaction": "0x2f42648a93ecaa4809272f5ba78f0bcd7e52eceb112ef81abd6b6c8a4edf17bc",
+    "payments": [
+      {
+        "hash": "0x7123f986638ac983243ba7c024a7cdd3acc0396ce0a8c2aa1b315de397e41cd0",
+        "department": "marketing.acme.enswhite.eth",
+        "vendor": "copydesk.vendors.enswhite.eth",
+        "amount": "100000",
+        "fee": "1000",
+        "deptNode": "0x616052b13203e159e144a2591bedb7524857dc485c1363298a56c1c48e3c0a0c",
+        "vendorNode": "0x247c5040771e025aa1b5b921ae14e0a0d2664375db0d6a55009934753d99034b"
+      },
+      {
+        "hash": "0x1dfda793a10e024f3a82acc4c6719fc3656315cf3ade74c3c864237b1bdc5f9f",
+        "department": "support.acme.enswhite.eth",
+        "vendor": "lingualink.vendors.enswhite.eth",
+        "amount": "100000",
+        "fee": "1000",
+        "deptNode": "0xa369edac519dde0ea72ee491b67a18eee349b0145e44feebf687bf53a9f86ba8",
+        "vendorNode": "0x71c01169d748c2eb87bb231d15f255614cf5845c7a4f13239dfbb1dea85e6a31"
+      },
+      {
+        "hash": "0x811232ee8b0ecb69ced740e321110a7805d251613f16edde7d6f9d859543ab4e",
+        "department": "marketing.acme.enswhite.eth",
+        "vendor": "pixelpress.vendors.enswhite.eth",
+        "amount": "200000",
+        "fee": "2000",
+        "deptNode": "0x616052b13203e159e144a2591bedb7524857dc485c1363298a56c1c48e3c0a0c",
+        "vendorNode": "0xf2dd4ac9e63f1071ea23c3f547ef72c8ae9d97af664ddb8cca3bc4a10c34f45d"
+      }
+    ]
   }
 }

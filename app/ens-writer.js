@@ -20,7 +20,7 @@ export function createENSWriter(db,directory,getWallet) {
     jobs:()=>db.prepare('SELECT id,label,key,value,state,hash,error FROM ens_writes ORDER BY rowid DESC LIMIT 30').all(),
     async status(label,value) {
       const last=db.prepare('SELECT value,state FROM ens_writes WHERE label=? AND key=? ORDER BY rowid DESC LIMIT 1').get(label,'enswhite.status');
-      if(last?.value===value&&last.state!=='failed')return;
+      if(last?.value===value&&['queued','submitted'].includes(last.state))return;
       const identity=await directory.employee(label);
       if(identity.status!==value)queue(label,'enswhite.status',value);
     },

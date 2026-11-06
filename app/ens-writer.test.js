@@ -23,6 +23,7 @@ test('ENS edits use the delegated actor and recover signed bytes without signing
   await writer.status('marketing','working');await writer.status('marketing','working');
   assert.equal(writer.jobs().length,2);
   await writer.process();assert.equal(signed[1].label,'marketing');
+  await writer.status('marketing','working');assert.equal(writer.jobs().length,3,'A rehired employee with an empty resolver status gets a fresh update');
   assert.throws(()=>writer.queue('marketing','enswhite.budget.weekly','50000001','finance-demo-02'),/at most 50/);
   assert.throws(()=>writer.queue('marketing','enswhite.vendors','evil.eth','finance-demo-02'),/scope/);
   assert.throws(()=>writer.queue('marketing','enswhite.budget.weekly','1','finance-demo-01'),/another edit/);
@@ -32,7 +33,7 @@ test('ENS edits use the delegated actor and recover signed bytes without signing
 test('ENS writer refuses inactive employees and excessive fees before signing',async()=>{
  const db=new DatabaseSync(':memory:');let active=false,signs=0;
  const wallet='0x0000000000000000000000000000000000000001';
- const directory={provider:{getNetwork:async()=>({chainId:11155111n})},employee:async()=>{if(!active)throw new Error('Expired');return {name:'marketing.acme.enswhite.eth',wallet,resolver:wallet}}};
+ const directory={provider:{getNetwork:async()=>({chainId:11155111n})},employee:async()=>{if(!active)throw new Error('Employee is fired or expired');return {name:'marketing.acme.enswhite.eth',wallet,resolver:wallet}}};
  const writer=createENSWriter(db,directory,()=>({address:wallet,connect(){return this},populateTransaction:async()=>({gasLimit:1000001n,maxFeePerGas:1n}),signTransaction:async()=>{signs++;return '0x01'}}));
- try{writer.queue('marketing','enswhite.status','active','agent-status-01');await writer.process();assert.equal(signs,0);assert(writer.jobs()[0].error);active=true;await writer.process();assert.equal(signs,0);assert.equal(writer.jobs()[0].state,'queued')}finally{db.close()}
+ try{writer.queue('marketing','enswhite.status','active','agent-status-01');await writer.process();assert.equal(signs,0);assert.equal(writer.jobs()[0].state,'failed');active=true;writer.queue('marketing','enswhite.status','active','agent-status-02');await writer.process();assert.equal(signs,0);assert.equal(writer.jobs()[0].state,'queued')}finally{db.close()}
 });

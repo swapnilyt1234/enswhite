@@ -92,6 +92,7 @@ async function refresh() {
   $('ens-controls').hidden=!state.ens?.enabled;
   const branding=state.ens?.branding;
   $('ens-company-brand').textContent=branding?`${branding.name} · ${state.ens.companyName}`:(state.ens?.companyName||'');
+  if(branding?.url){const link=document.createElement('a');link.href=branding.url;link.target='_blank';link.rel='noreferrer';link.textContent=' · Company profile ↗';$('ens-company-brand').append(link)}
   if(branding){
     document.querySelector('.workspace-switch strong').textContent=branding.name;
     document.querySelector('.breadcrumb').firstChild.textContent=branding.name+' ';
