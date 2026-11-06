@@ -47,3 +47,12 @@ test('launch read timeouts retry in place and confirmation timeouts preserve one
  const signer={address:wallet.address,provider,populateTransaction:async tx=>({...tx,nonce:0,gasLimit:21000n,gasPrice:1n,type:0}),signTransaction:async tx=>{signs++;return wallet.signTransaction(tx)}};
  const send=createProvisionSender(store.db,()=>{}),tx={to:Wallet.createRandom().address,value:1000n};assert.equal((await send('job','fund',signer,tx)).status,1);await send('job','fund',signer,tx);assert.equal(signs,1);
 });
+
+test('Whitechain deployment fee headroom fits the approved daily budget without raising ordinary call caps',async t=>{
+ const directory=mkdtempSync(join(tmpdir(),'enswhite-launch-')),store=createLaunchStore(directory);t.after(()=>{store.close();rmSync(directory,{recursive:true,force:true})});const wallet=Wallet.createRandom();let signed=0;
+ const provider={getNetwork:async()=>({chainId:1874n}),getBalance:async()=>10n**18n,getTransactionReceipt:async()=>({status:1})};
+ const signer={address:wallet.address,provider,populateTransaction:async tx=>({...tx,nonce:0,gasLimit:1905403n,gasPrice:10001000000n,type:0}),signTransaction:async tx=>{signed++;return wallet.signTransaction(tx)}};
+ const send=createProvisionSender(store.db,()=>{});await send('job','whitechain-company',signer,{data:'0x6000'});assert.equal(signed,1);
+ assert(BigInt(store.db.prepare('SELECT fee FROM launch_transactions').get().fee)<30_000_000_000_000_000n);
+ await assert.rejects(send('job','ordinary-call',signer,{to:Wallet.createRandom().address,data:'0x6000'}),/per-transaction cap 0.02/);assert.equal(signed,1);
+});

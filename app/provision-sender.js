@@ -1,4 +1,4 @@
-import {keccak256,Transaction} from 'ethers';
+import {keccak256,Transaction,formatEther} from 'ethers';
 import {retryRPCRead} from './chain.js';
 import {launchPolicy} from './launch-store.js';
 
@@ -12,7 +12,8 @@ export function createProvisionSender(db,assertLease){
    if(step==='launch-company'&&db.prepare("SELECT COUNT(*) n FROM launch_transactions WHERE step='launch-company' AND created_at>=?").get(Math.floor(Date.now()/86400000)*86400000).n>=launchPolicy.companiesPerDay)throw new Error('Daily operator company budget reached. Resume on a later UTC day.');
    const tx=await retryRPCRead(()=>signer.populateTransaction({...transaction,chainId:chain}));tx.gasLimit=(BigInt(tx.gasLimit)*120n+99n)/100n;
    const fee=BigInt(tx.gasLimit)*BigInt(tx.maxFeePerGas??tx.gasPrice),value=BigInt(tx.value??0),cap=chain===11155111?launchPolicy.sepoliaWei:launchPolicy.whitechainWei;
-   if(tx.gasLimit>(tx.to?8_000_000n:20_000_000n)||fee>(chain===11155111?5_000_000_000_000_000n:20_000_000_000_000_000n))throw new Error('Provision transaction exceeds gas policy');
+   const feeCap=chain===11155111?5_000_000_000_000_000n:tx.to?20_000_000_000_000_000n:30_000_000_000_000_000n;
+   if(tx.gasLimit>(tx.to?8_000_000n:20_000_000n)||fee>feeCap)throw new Error(`Provision transaction exceeds gas policy: maximum fee ${formatEther(fee)} ${chain===11155111?'Sepolia ETH':'WBT'}; per-transaction cap ${formatEther(feeCap)}.`);
    const today=Math.floor(Date.now()/86400000)*86400000;
    const spent=db.prepare('SELECT fee,value,token_units FROM launch_transactions WHERE chain=? AND created_at>=?').all(chain,today);
    if(spent.reduce((n,x)=>n+BigInt(x.fee)+BigInt(x.value),0n)+fee+value>cap||spent.reduce((n,x)=>n+BigInt(x.token_units),0n)+tokenUnits>launchPolicy.poolUnits)throw new Error('Daily operator spending budget reached. Resume on a later UTC day.');
