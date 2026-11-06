@@ -41,7 +41,7 @@ export async function createVendor(vendorId, env = process.env) {
       try { const event = parseCompanyLog(log); return event?.name === 'Paid' && event.args.requestId === body.requestId && event.args.vendor.toLowerCase() === wallet.address.toLowerCase() && event.args.dept.toLowerCase() === body.dept.toLowerCase() && event.args.amount === BigInt(info.price); } catch { return false; }
     });
   }
-  const app = express(); app.disable('x-powered-by'); app.use(express.json({ limit: '12kb' }));
+  const app = express(); app.disable('x-powered-by'); app.use(express.json({ limit: '32kb' }));
   app.get('/api/info', (req, res) => res.json({ ...info, address: wallet.address, chainMode: mode, company, scheme: 'enswhite-receive' }));
   app.get('/api/earnings', async (req, res) => {
     const receipts = await events();
@@ -52,7 +52,7 @@ export async function createVendor(vendorId, env = process.env) {
   // A vendor unlocks delivery only after independently finding its own Paid receipt.
   app.post('/work', async (req, res, next) => {
     const body = req.body;
-    if (!body || !/^0x[a-f0-9]{64}$/i.test(body.requestId ?? '') || !/^0x[a-f0-9]{40}$/i.test(body.dept ?? '') || typeof body.task !== 'string' || !body.task.trim() || body.task.length > 2000) throw fail('Invalid task');
+    if (!body || !/^0x[a-f0-9]{64}$/i.test(body.requestId ?? '') || !/^0x[a-f0-9]{40}$/i.test(body.dept ?? '') || typeof body.task !== 'string' || !body.task.trim() || body.task.length > 8000) throw fail('Invalid task');
     const hash = digest(JSON.stringify({ task: body.task, dept: body.dept }));
     const order = db.prepare('SELECT * FROM vendor_orders WHERE id=?').get(body.requestId);
     if (order && order.body_hash !== hash) throw fail('Request ID is bound to a different task');

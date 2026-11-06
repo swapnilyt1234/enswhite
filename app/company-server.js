@@ -16,6 +16,10 @@ export function createCompanyApp(company, origin, { guest = false } = {}) {
   });
   sessionRoutes(app, company, origin, { login: !guest, guest });
   app.get('/api/state', async (req, res) => res.json(await company.state()));
+  app.get('/api/agent-runs',(req,res)=>res.json(company.agentStore.runs()));
+  app.get('/api/agent-runs/:id',(req,res)=>res.json(company.agentHistory(req.params.id)));
+  app.post('/api/agent-runs/:id/retry',(req,res)=>{const result=company.retryAgent(req.params.id);void company.processJobs().catch(()=>{});res.json(result)});
+  app.post('/api/finance/proposal',(req,res)=>{company.requestFinanceProposal().then(result=>{void company.processJobs().catch(()=>{});res.status(202).json(result)}).catch(error=>res.status(error.status||500).json({error:'Finance proposal could not start.'}))});
   app.post('/api/business',(req,res)=>res.json(company.updateBusiness(req.body)));
   app.get('/api/kits/:id',(req,res)=>res.json(company.kit(req.params.id)));
   app.get('/api/kits/:id/download',(req,res)=>res.type('html').set('Content-Disposition','attachment; filename="enswhite-campaign-kit.html"').send(campaignKitHTML(company.kit(req.params.id))));
@@ -35,8 +39,8 @@ export function createCompanyApp(company, origin, { guest = false } = {}) {
   app.post('/api/ens/budget',async(req,res)=>res.json(company.updateENSBudget(req.body.label,req.body.amount,req.get('idempotency-key'))));
   app.post('/api/orders', async (req, res) => res.json(await company.order()));
   app.post('/api/simulate', async (req, res) => { const result = await company.simulate(req.body.orderId); await company.processJobs(); res.json(result); });
-  app.post('/api/allocate', async (req, res) => { const result = await company.allocate(); await company.processJobs(); res.json(result); });
-  app.post('/api/missions', async (req, res) => { const result = await company.mission(req.body.title, req.get('idempotency-key')); await company.processJobs(); res.json(result); });
+  app.post('/api/allocate', async (req, res) => { const result = await company.allocate(req.body.proposalId);void company.processJobs().catch(()=>{});res.json(result); });
+  app.post('/api/missions', async (req, res) => { const result = await company.mission(req.body.title, req.get('idempotency-key'));void company.processJobs().catch(()=>{});res.status(202).json(result); });
   app.post('/api/approvals/:id', async (req, res) => { company.approve(req.params.id, req.body.approved); await company.processJobs(); res.json({ accepted: true }); });
   app.get('/api/books.csv', async (req, res) => res.type('csv').set('Content-Disposition', 'attachment; filename="enswhite-books.csv"').send(await company.csv()));
   app.get('/api/x402/supported', (req, res) => res.json({ kinds: [{ x402Version: 2, scheme: COMPANY_SCHEME, network: NETWORK }], extensions: [], signers: { [NETWORK]: [company.chain.relayerAddress] } }));
