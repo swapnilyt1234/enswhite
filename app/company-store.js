@@ -15,9 +15,9 @@ export function walletStore(db, encryptionKey) {
 }
 
 export const DEPARTMENTS = [
-  { id: 'marketing', name: 'Marketing', title: 'Find the words. Make the launch.', weekly: '3000000', perCall: '500000', perDay: '3000000', approval: '150000', share: 60 },
-  { id: 'support', name: 'Support', title: 'Be there for every customer.', weekly: '1500000', perCall: '200000', perDay: '1500000', approval: '100000', share: 30 },
-  { id: 'finance', name: 'Finance', title: 'Keep the company accountable.', weekly: '500000', perCall: '100000', perDay: '500000', approval: '50000', share: 10 },
+  { id: 'marketing', name: 'Marketing', title: 'Find the words. Make the launch.', weekly: '3000000', perCall: '500000', perDay: '3000000', approval: '150000' },
+  { id: 'support', name: 'Support', title: 'Be there for every customer.', weekly: '1500000', perCall: '200000', perDay: '1500000', approval: '100000' },
+  { id: 'finance', name: 'Finance', title: 'Keep the company accountable.', weekly: '500000', perCall: '100000', perDay: '500000', approval: '50000' },
 ];
 export const VENDORS = [
   { id: 'copydesk', name: 'CopyDesk', port: 4001, price: '100000', service: 'Launch copy', dept: 'marketing' },

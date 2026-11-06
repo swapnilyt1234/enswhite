@@ -9,6 +9,7 @@
   "scripts": {
     "start": "node --env-file-if-exists=.env app/server.js",
     "company": "node --env-file-if-exists=.env.company app/run-company.js",
+    "demo:employees": "node --env-file-if-exists=.env.company app/demo-runtime.js",
     "test": "node --test app/*.test.js",
     "check:chain": "node --env-file-if-exists=.env app/check-chain.js",
     "ens:check": "node --env-file-if-exists=.env.ens ens/scripts/bootstrap.js check",

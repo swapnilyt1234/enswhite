@@ -36,7 +36,7 @@ try {
     $env:ATTESTER_PASSWORD=$env:RELAYER_PASSWORD
     Read-CompanySecret 'FOUNDER_PASSWORD' 'Choose a founder sign-in password (at least 12 characters)'
     Write-Host 'Policy: each verified INR 500 test payment credits 5 test USDT from the prefunded contract.'
-    Write-Host 'Finance allocates 60/30/10 within weekly caps. Allowlisted vendor tasks cost 0.1/0.2/0.1 USDT; 1% stays as fees.'
+    Write-Host 'Finance proposes task-based allocations for founder approval within weekly caps. Allowlisted vendor tasks cost 0.1/0.2/0.1 USDT; 1% stays as fees.'
     Write-Host 'Above-threshold tasks require a founder approval. The WBT-only relayer pays gas. Attester signs captured-payment confirmations.'
     Write-Host "Webhook: $env:APP_ORIGIN/api/webhooks/razorpay. Keep payment.captured active."
     if((Read-Host 'Start automatic signing under these limits? Type yes') -cne 'yes'){return}
