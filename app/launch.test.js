@@ -39,3 +39,11 @@ test('launch sender journals before broadcast, recovers identical bytes and reje
  for(let i=0;i<2;i++)store.db.prepare("INSERT INTO launch_transactions VALUES(?,?,'launch-company',11155111,?,?,'0','0','0','confirmed',?)").run('prior'+i,'prior'+i,saved.raw,saved.hash,Date.now());
  await assert.rejects(send('third','launch-company',signer,tx),/company budget/);
 });
+
+test('launch read timeouts retry in place and confirmation timeouts preserve one signed transaction',async t=>{
+ const directory=mkdtempSync(join(tmpdir(),'enswhite-launch-')),store=createLaunchStore(directory);t.after(()=>{store.close();rmSync(directory,{recursive:true,force:true})});
+ const wallet=Wallet.createRandom();let reads=0,signs=0,receipt=null;
+ const provider={getNetwork:async()=>({chainId:11155111n}),getBalance:async()=>10n**18n,getTransactionReceipt:async()=>{if(!reads++)throw Object.assign(new Error('timeout'),{code:'TIMEOUT'});return receipt},broadcastTransaction:async()=>{receipt={status:1}},waitForTransaction:async()=>{throw Object.assign(new Error('timeout'),{code:'TIMEOUT'})}};
+ const signer={address:wallet.address,provider,populateTransaction:async tx=>({...tx,nonce:0,gasLimit:21000n,gasPrice:1n,type:0}),signTransaction:async tx=>{signs++;return wallet.signTransaction(tx)}};
+ const send=createProvisionSender(store.db,()=>{}),tx={to:Wallet.createRandom().address,value:1000n};assert.equal((await send('job','fund',signer,tx)).status,1);await send('job','fund',signer,tx);assert.equal(signs,1);
+});
