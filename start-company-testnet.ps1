@@ -22,8 +22,8 @@ try {
     if(-not $env:RAZORPAY_KEY_ID){$env:RAZORPAY_KEY_ID=Read-Host 'Razorpay TEST key ID'}
     Read-CompanySecret 'RAZORPAY_KEY_SECRET' 'Razorpay TEST key secret'
     Read-CompanySecret 'RAZORPAY_WEBHOOK_SECRET' 'Razorpay webhook secret'
-    Read-CompanySecret 'RELAYER_PASSWORD' 'Encrypted Relay relayer keystore password'
-    Read-CompanySecret 'ATTESTER_PASSWORD' 'Encrypted Relay attester keystore password'
+    Read-CompanySecret 'RELAYER_PASSWORD' 'NEW 12+ character Relay role-wallet password chosen in prepare-company.ps1 (not the original owner password)'
+    $env:ATTESTER_PASSWORD=$env:RELAYER_PASSWORD
     Read-CompanySecret 'FOUNDER_PASSWORD' 'Choose a founder sign-in password (at least 12 characters)'
     Write-Host 'Policy: each verified INR 500 test payment credits 5 test USDT from the prefunded contract.'
     Write-Host 'Finance allocates 60/30/10 within weekly caps. Allowlisted vendor tasks cost 0.1/0.2/0.1 USDT; 1% stays as fees.'

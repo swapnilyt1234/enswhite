@@ -87,6 +87,8 @@ Run these from `C:\Users\swapn\Desktop\ethglobal` in your own PowerShell termina
 
 All passwords are entered locally and passed through process environments, never command arguments or chat. Private state lives under `data/company/<mode>` and `data/vendors/<mode>`. Department/vendor keys use AES-256-GCM; the role wallets use encrypted Ethereum keystores. Back up the encrypted database and local encryption key together and restrict OS access. Losing keys or founder access is not recoverable through this demo. Changing modes or company addresses requires a fresh company data directory.
 
+Password guide: the **original owner password** unlocks `whitechain-testnet` for deployment and owner configuration. The **new 12+ character role-wallet password** chosen in `prepare-company.ps1` unlocks `relay-relayer`, `relay-treasury`, and `relay-attester`; pool funding asks for it once. The **founder sign-in password** is chosen separately when starting the company and is used only to sign into the app.
+
 ## Custom x402 scheme
 
 The company implements **`relay-receive`**, a custom scheme over x402 v2 HTTP headers on **`eip155:1874`**. It is deliberately **not called standard `exact`**: that scheme normally signs `TransferWithAuthorization`, whereas Relay signs `ReceiveWithAuthorization` to an enforcing contract.

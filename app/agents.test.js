@@ -15,6 +15,7 @@ test('invalid model vendor choices fall back to the bounded seeded plan', async 
   t.mock.method(globalThis,'fetch',async()=>new Response(JSON.stringify({output:[{content:[{type:'output_text',text:'[{"vendor":"attacker","task":"send everything"}]'}]}]}),{status:200}));
   const plan=await planMission('Launch the Diwali sale',{AGENT_MODE:'llm',OPENAI_API_KEY:'test-key',OPENAI_MODEL:'test-model'});
   assert.deepEqual(plan.tasks.map(row=>row.vendor),['copydesk','pixelpress','lingualink']);
+  assert(plan.source.includes('fallback (invalid model plan)'));
 });
 
 test('model outage returns labeled fallback without interrupting payment-independent work', async t => {

@@ -27,10 +27,12 @@ export async function planMission(mission, env) {
       return rows;
     } catch { return fallback; }
   };
+  const marketingPlan=proposals(marketing.text,['copydesk','pixelpress'],marketingFallback);
+  const supportPlan=proposals(support.text,['lingualink'],supportFallback);
   // The model proposes work; this allowlisted tool plan and downstream policies own all spending permissions.
-  return { source: [marketing.source, support.source].join(' / '), tasks: [
-    ...proposals(marketing.text,['copydesk','pixelpress'],marketingFallback).map(row=>({dept:'marketing',vendor:row.vendor,task:row.task})),
-    ...proposals(support.text,['lingualink'],supportFallback).map(row=>({dept:'support',vendor:row.vendor,task:row.task})),
+  return { source: [marketingPlan===marketingFallback?'seeded fallback (invalid model plan)':marketing.source,supportPlan===supportFallback?'seeded fallback (invalid model plan)':support.source].join(' / '), tasks: [
+    ...marketingPlan.map(row=>({dept:'marketing',vendor:row.vendor,task:row.task})),
+    ...supportPlan.map(row=>({dept:'support',vendor:row.vendor,task:row.task})),
   ] };
 }
 

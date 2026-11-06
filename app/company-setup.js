@@ -72,8 +72,9 @@ if (command === 'prepare') {
   const deployment=JSON.parse(await readFile(join(directory,'deployment.json'),'utf8'));
   const base=await inspectToken(process.env.RPC_URL);
   try {
-    const treasury=await Wallet.fromEncryptedJson(await readFile(config.roles.treasury.keystore,'utf8'),process.env.TREASURY_PASSWORD);
-    const relayer=(await Wallet.fromEncryptedJson(await readFile(config.roles.relayer.keystore,'utf8'),process.env.RELAYER_PASSWORD)).connect(base.provider);
+    let treasury,relayer;
+    try{treasury=await Wallet.fromEncryptedJson(await readFile(config.roles.treasury.keystore,'utf8'),process.env.TREASURY_PASSWORD)}catch{throw new Error('Cannot unlock relay-treasury: use the 12+ character role-wallet password chosen in prepare-company.ps1, not the original owner password. No transfer was sent.')}
+    try{relayer=(await Wallet.fromEncryptedJson(await readFile(config.roles.relayer.keystore,'utf8'),process.env.RELAYER_PASSWORD)).connect(base.provider)}catch{throw new Error('Cannot unlock relay-relayer with the role-wallet password. No transfer was sent.')}
     if(treasury.address===relayer.address)throw new Error('Treasury and relayer must differ');
     const file=join(directory,`pool-funding-${getAddress(deployment.address)}.json`);
     let saved;
