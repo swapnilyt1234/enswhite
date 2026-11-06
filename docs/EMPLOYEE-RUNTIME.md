@@ -60,7 +60,7 @@ Public activation in this session was blocked by automatic execution review when
 
 ## Current boundaries
 
-- Real model connectivity and complete tool execution are verified with `gpt-6.1-sol` and simulated funds. Independent output quality review and a new real-testnet mission remain pending. Offline FAQs preserve source facts and explicitly do not claim to have translated them.
+- Real model connectivity and complete tool execution are verified with simulated funds and the real Whitechain testnet company. The live mission completed Marketing in 8 calls, Support in 6 and Finance in 7, and unlocked its Campaign Kit with three confirmed receipts totaling 0.4 test USDT. See [live mission and editorial review](TESTNET-RUNTIME-MISSION.md): missing founder facts and a draft-warning banner headline remain publication issues. Offline FAQs preserve source facts and explicitly do not claim to have translated them.
 - Translation is a draft for founder review. Source checks and payment verification do not prove semantic quality.
 - The runtime intentionally supports three fixed employees and the complete commerce-launch workflow. It does not execute arbitrary code, unrestricted agent-to-agent payments, tax/payroll or treasury trading.
 - ENS discovery migration is now live and independently verified on Sepolia: Marketing 11295, Support 11296 and Finance 11297. ENSIP-25 consent, ERC-8004 ownership/wallet metadata and ENSIP-26 context/web records are configured. The company pointer now resolves to the replacement directory; Whitechain was not redeployed. See [deployment evidence](DISCOVERY-VERIFICATION.md). Reputation feedback and validation services remain a later identity phase.

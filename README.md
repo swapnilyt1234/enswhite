@@ -10,7 +10,7 @@ A founder describes their business and gives a mission. Marketing, Support and F
 
 [Employee runtime, sample tool trace and local commands](docs/EMPLOYEE-RUNTIME.md) · [Completed offline Kit](https://zoning-playhouse-banister.ngrok-free.dev/sample-kit.html) · [Whitechain feedback](WHITECHAIN_FEEDBACK.md)
 
-Private model mode fails explicitly on an API error; it does not disguise an offline substitute as AI work. Guest sessions execute the same bounded tool interface offline and label that source. Eight tool calls and twelve API attempts per assignment bound execution. A real `gpt-6.1-sol` mission completed all three employees and its Campaign Kit with simulated funds on November 7, 2026; the new runtime's live-testnet mission remains pending. See the runtime guide for its executed tool trace and limits.
+Private model mode fails explicitly on an API error; it does not disguise an offline substitute as AI work. Guest sessions execute the same bounded tool interface offline and label that source. Eight tool calls and twelve API attempts per assignment bound execution. Real-model missions completed with simulated funds and real Whitechain testnet payments on November 7, 2026. The [live-testnet Campaign Kit evidence](docs/TESTNET-RUNTIME-MISSION.md) records all three employee submissions, vendor receipts, recovery behavior and content-review limits.
 
 **Sandbox fiat; real testnet settlement.** ₹500 in Razorpay test mode credits 5 test USDT from a prefunded company contract. This is a fixed demo allocation, not fiat conversion. Guest companies use isolated simulations and offline content; authenticated founders can configure OpenAI planning/content locally. Test USDT has no real monetary value.
 
