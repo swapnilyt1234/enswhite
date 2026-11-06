@@ -24,7 +24,7 @@ async function guestWorkspace(origin){
   }catch(error){await close();throw error}
 }
 
-export function createJudgeApp({origin,owner=false,proof=createLiveProof(),workspace=guestWorkspace}={}){
+export function createJudgeApp({origin,owner=false,proof=createLiveProof(),workspace=guestWorkspace,ownerRequest=httpRequest}={}){
   const app=baseApp(origin),sessions=new Map(),attempts=new Map();let creating=0;
   const publicDir=join(dirname(fileURLToPath(import.meta.url)),'judge-public');
   app.post('/guest/start',express.json({limit:'1kb'}),async(req,res)=>{
@@ -48,9 +48,9 @@ export function createJudgeApp({origin,owner=false,proof=createLiveProof(),works
   app.get('/agents/:id/registration',async(req,res)=>{try{const data=await proof.read(),agent=data.team.find(x=>x.name.split('.')[0]===req.params.id);if(!agent)return res.status(404).json({error:'No active ENS employee'});if(!agent.discovery?.binding?.verified)return res.status(409).json({error:'Agent registration is not verified on ENS and ERC-8004'});res.json(agent.discovery.binding.registration)}catch{res.status(503).json({error:'Live identity data unavailable'})}});
   if(owner){
     // Fixed upstream only. Keep raw webhook bytes and SSE streams intact.
-    const proxy=(req,res)=>{const upstream=httpRequest({hostname:'127.0.0.1',port:3004,path:req.url,method:req.method,headers:{...req.headers,host:new URL(origin).host}},response=>{res.writeHead(response.statusCode,response.headers);response.pipe(res)});upstream.on('error',()=>{if(!res.headersSent)res.status(502).json({error:'Founder service unavailable'});else res.destroy()});req.on('aborted',()=>upstream.destroy());res.on('close',()=>upstream.destroy());req.pipe(upstream)};
+    const proxy=(req,res)=>{const upstream=ownerRequest({hostname:'127.0.0.1',port:3004,path:req.url,method:req.method,headers:{...req.headers,host:new URL(origin).host}},response=>{res.writeHead(response.statusCode,response.headers);response.pipe(res)});upstream.on('error',()=>{if(!res.headersSent)res.status(502).json({error:'Founder service unavailable'});else res.destroy()});req.on('aborted',()=>upstream.destroy());res.on('close',()=>upstream.destroy());req.pipe(upstream)};
     app.post('/api/webhooks/razorpay',proxy);
-    app.get('/owner',(req,res)=>res.redirect('/owner/'));
+    app.get(/^\/owner$/,(req,res)=>res.redirect('/owner/'));
     app.use('/owner',proxy);
   }
   app.use(express.static(publicDir));
