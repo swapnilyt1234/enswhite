@@ -9,7 +9,7 @@ import { openStore, createGateway, webhookSignature, digest, fail } from './paym
 import { DEPARTMENTS, VENDORS, walletStore } from './company-store.js';
 import { createSimulatedCompanyChain, createRealCompanyChain, RECEIVE_TYPES, TOP_UP_TYPES, ALLOCATE_TYPES, boundNonce } from './company-chain.js';
 import { decodePayment, encodePayment } from './x402.js';
-import { NETWORK, TOKEN, EXPLORER } from './chain.js';
+import { NETWORK, TOKEN, EXPLORER, retryRPCRead } from './chain.js';
 import { createENSDirectory, IDENTITY_TYPES } from './ens.js';
 import { createENSWriter } from './ens-writer.js';
 import { createActivity } from './activity.js';
@@ -258,7 +258,7 @@ export async function createCompany({ env = process.env, directory = resolve(env
         db.prepare("INSERT OR IGNORE INTO finance_proposals VALUES(?,?,?,?,?,'draft',?)").run(id,missionId,JSON.stringify(allocations),rationale,source,Date.now());
         activity.record('finance','allocation_proposed',rationale,{mission:missionId,data:{proposalId:id,allocations,source},key:'proposal:'+id});return{id,allocations,rationale,requiresFounderApproval:true};
       },
-      async requestFinanceProposal(){if(db.prepare("SELECT COUNT(*) n FROM agent_runs WHERE purpose='allocation'").get().n>=20)throw fail('Finance proposal run limit reached',429);const snapshot=await chain.snapshot(),nonce=await chain.allocationNonce(),id='allocation_'+keccak256(toUtf8Bytes(`${week()}:${snapshot.companyBalance}:${nonce}`)).slice(2,34);agentStore.ensure(id,'finance',env.AGENT_MODE==='llm'?'llm':'offline','allocation',env.AGENT_MODE==='llm'?2:1);return{id}},
+      async requestFinanceProposal(){if(db.prepare("SELECT COUNT(*) n FROM agent_runs WHERE purpose='allocation'").get().n>=20)throw fail('Finance proposal run limit reached',429);const snapshot=await retryRPCRead(()=>chain.snapshot()),nonce=await retryRPCRead(()=>chain.allocationNonce()),id='allocation_'+keccak256(toUtf8Bytes(`${week()}:${snapshot.companyBalance}:${nonce}`)).slice(2,34);agentStore.ensure(id,'finance',env.AGENT_MODE==='llm'?'llm':'offline','allocation',env.AGENT_MODE==='llm'?2:1);const runId=`${id}:finance:allocation`,saved=agentStore.run(runId);if(saved.state==='failed'&&saved.calls===0&&saved.attempts===0)runtime.retry(runId);return{id}},
       async allocate(proposalId) {
         await service.assertEmployee('finance');
         if(!proposalId){if(env.AGENT_MODE==='llm')throw fail('Request and review a Finance proposal before approval');const missionId='allocation_'+week(),needs=await service.allocationNeeds(missionId);proposalId=(await service.proposeAllocation(needs,'Offline task-cost proposal for the registered campaign services, after existing department funds.',missionId)).id;}

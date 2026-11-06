@@ -226,5 +226,12 @@
       "hash": "0x34c3fe833988fadf98c8e72f066b00250ba69ef3b63c61e1e81822ba9f8a324d"
     }
   ],
-  "status": "Provisioned and independently verified; checkout, mission and reviews pending"
+  "status": "Provisioning and one captured sandbox top-up verified; mission and reviews pending",
+  "topUp": {
+    "transaction": "0xf0ee5ae84f16d45f525f74ec45dc99d066506a77ccdfd948d3d60476e45572da",
+    "block": 12404756,
+    "testUsdtUnits": "5000000",
+    "demoINR": 500,
+    "verified": true
+  }
 }

@@ -32,6 +32,13 @@ async function setup(t, options = {}) {
 }
 async function fund(company) { const order = await company.order(); await company.simulate(order.id); await company.processJobs(); return order; }
 
+test('requesting Finance again resumes the same untouched failed proposal without creating another run',async t=>{
+ const {company}=await setup(t,{env:{AGENT_MODE:'llm',OPENAI_API_KEY:'test',OPENAI_MODEL:'fixture'}});
+ const first=await company.requestFinanceProposal(),runId=`${first.id}:finance:allocation`;company.agentStore.checkpoint(runId,{state:'failed',error:'Company context could not be loaded.'});
+ const retried=await company.requestFinanceProposal();assert.equal(retried.id,first.id);assert.equal(company.agentStore.run(runId).state,'queued');assert.equal(company.agentStore.runs().length,1);assert.equal(company.agentStore.run(runId).calls,0);
+ company.agentStore.checkpoint(runId,{state:'failed',calls:1});await company.requestFinanceProposal();assert.equal(company.agentStore.run(runId).state,'failed','A run with tool decisions needs explicit saved-run recovery');
+});
+
 test('founder employment requests queue without a browser wallet and pending removal blocks new work',async t=>{
  const controller='0x0000000000000000000000000000000000000003';let company,inactive=false;
  const directory={companyName:'acme.enswhite.eth',provider:{},close(){},async employee(label){if(inactive&&label==='support')throw new Error('Employee is fired or expired');const dept=company.departments.find(x=>x.id===label);return{wallet:dept.address,weekly:dept.weekly,perCall:dept.perCall,vendors:label==='support'?['lingualink.vendors.enswhite.eth']:label==='marketing'?['copydesk.vendors.enswhite.eth','pixelpress.vendors.enswhite.eth']:[]}},transaction(){throw new Error('The web app must not request browser signing')}};

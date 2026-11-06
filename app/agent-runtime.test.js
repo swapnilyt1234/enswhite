@@ -25,6 +25,12 @@ test('a model cannot call outside its role or complete work using plain prose',a
 test('inactive employment refuses model access before any work is initiated',async t=>{
  let requested=0;const {store,runtime}=setup(t,{authorize:async()=>{throw new Error('Employee is fired or expired')},modelFetch:async()=>{requested++;throw new Error('must not call')}});const id=store.ensure('m','marketing','llm');await runtime.tick();assert.equal(requested,0);assert.equal(store.run(id).state,'failed');assert.equal(store.actions(id).length,0);
 });
+
+test('a transient context read retries before consuming a model decision or failing the saved run',async t=>{
+ const db=new DatabaseSync(':memory:'),store=createAgentStore(db),activity=createActivity(db);let reads=0,modelCalls=0;
+ const runtime=createAgentRuntime({db,store,activity,env:{OPENAI_MODEL:'fixture',OPENAI_API_KEY:'test'},context:async()=>{if(!reads++)throw Object.assign(new Error('temporary RPC timeout'),{code:'TIMEOUT'});return{mission:'Review startup budget'}},observe:async()=>'',tools:{authorize:async()=>{},execute:async()=>({complete:true,summary:'Verified budget'})},modelFetch:async()=>{modelCalls++;return Response.json({output:[{type:'function_call',call_id:'done',name:'submit_work',arguments:'{"summary":"Verified budget"}'}]})}});
+ t.after(async()=>{await runtime.close();activity.close();db.close()});const id=store.ensure('budget','finance','llm');await runtime.tick();assert.equal(store.run(id).state,'completed');assert.equal(reads,2);assert.equal(modelCalls,1);assert.equal(store.run(id).calls,1);
+});
 test('Responses tool results and opaque reasoning are replayed; API failures cannot produce a deliverable',async t=>{
  let n=0;const {store,runtime}=setup(t,{execute:async()=>({fact:'verified tool result'}),modelFetch:async(url,init)=>{const body=JSON.parse(init.body);if(n++){assert(body.input.some(x=>x.type==='reasoning'&&x.encrypted_content==='opaque'));assert(body.input.some(x=>x.type==='function_call_output'&&x.output.includes('verified tool result')));return new Response('{}',{status:503})}return new Response(JSON.stringify({output:[{type:'reasoning',encrypted_content:'opaque'},{type:'function_call',call_id:'read1',name:'read_context',arguments:'{}'}]}))}});const id=store.ensure('m','marketing','llm');await runtime.tick();assert.equal(store.run(id).state,'failed');assert.match(store.run(id).error,/HTTP 503/);assert.equal(store.artifactFor('m','marketing','submission'),null);assert.equal(store.actions(id).length,1);
 });

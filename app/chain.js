@@ -1,6 +1,7 @@
+import {createTestnetProvider} from './testnet-provider.js';
 import { readFile } from 'node:fs/promises';
 import {
-  Contract, FetchRequest, JsonRpcProvider, Wallet, TypedDataEncoder,
+  Contract, Wallet, TypedDataEncoder,
   getAddress, keccak256, toUtf8Bytes, verifyTypedData,
 } from 'ethers';
 
@@ -34,10 +35,7 @@ export async function retryRPCRead(read) {
 export async function inspectToken(rpc = 'https://rpc.testnet.whitechain.io') {
   if (new URL(rpc).protocol !== 'https:') throw new Error('RPC must use HTTPS');
   return retryRPCRead(async()=>{
-  const request = new FetchRequest(rpc);
-  request.timeout=10_000;
-  request.setHeader('User-Agent', 'WhitechainHackathon/0.1');
-  const provider = new JsonRpcProvider(request);
+  const provider = createTestnetProvider(rpc,1874);
   try {
     if ((await provider.getNetwork()).chainId !== 1874n) throw new Error('Wrong chain: expected 1874');
     const token = new Contract(TOKEN, abi, provider);

@@ -1,4 +1,5 @@
-import { Contract, Interface, FetchRequest, JsonRpcProvider, getAddress, keccak256, namehash, toUtf8Bytes, parseEther } from 'ethers';
+import {createTestnetProvider} from './testnet-provider.js';
+import { Contract, Interface, getAddress, keccak256, namehash, toUtf8Bytes, parseEther } from 'ethers';
 import {identityManifest,identityContract,verifyAgentBinding} from './agent-identity.js';
 export const WHITECHAIN_COIN_TYPE = 2147485522;
 export const IDENTITY_TYPES = { Identity: [
@@ -44,8 +45,7 @@ export function createENSDirectory(env = process.env, connection) {
   if (!env.ENS_COMPANY_NAME || !env.ENS_COMPANY_REGISTRY || !env.ENS_REGISTRY_BLOCK) throw new Error('Configure the ENS company name, registry and deployment block');
   const url = env.SEPOLIA_RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com';
   if (new URL(url).protocol !== 'https:') throw new Error('Sepolia RPC must use HTTPS');
-  const request=new FetchRequest(url);request.timeout=10000;
-  const provider = connection || new JsonRpcProvider(request, 11155111, { cacheTimeout: 0 });
+  const provider = connection || createTestnetProvider(url,11155111);
   const registry = new Contract(env.ENS_COMPANY_REGISTRY, ENS_REGISTRY_ABI, provider);
   const registrations=identityManifest(env.ENS_IDENTITY_FILE);
   const hireReceipts=new Map();
