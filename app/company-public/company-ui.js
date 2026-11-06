@@ -109,7 +109,12 @@ async function refresh() {
   $('receipt-count').textContent=state.ledger.length+' verifiable receipts';
   $('environment').textContent=state.mode==='simulated'?'Local simulation':'Testnet settlement';
   $('disclosure').textContent=state.mode==='simulated'?'Fiat and transfers are simulated locally. No real money or onchain transaction occurs.':'Razorpay test mode. Fiat is simulated; vendor payments settle in test USDT on Whitechain.';
-  $('topup').disabled=busy;$('allocate').disabled=busy||BigInt(state.companyBalance)===0n;
+  const backing=state.topup,canCheckout=backing.canCheckout!==false;
+  $('topup').disabled=busy||!canCheckout;$('topup').textContent=canCheckout?'+ Add ₹500':'Pool funding needed';
+  const warning=$('pool-warning');warning.hidden=canCheckout&&!backing.pendingCount;
+  if(backing.pendingCount){warning.textContent=`${backing.pendingCount} verified sandbox payment(s), ${Number(backing.pendingUnits)/1e6} test USDT credit, awaiting settlement. ${BigInt(backing.shortfall||'0')>0n?`The business must deposit ${Number(backing.shortfall)/1e6} more test USDT into company ${state.company}. `:''}Existing payments retry automatically; do not repeat checkout.`}
+  else if(!canCheckout){warning.textContent=`New sandbox top-ups require prefunded test USDT at company ${state.company}. Existing company credit and department budgets remain available; another checkout cannot refill the pool.`}
+  $('allocate').disabled=busy||BigInt(state.companyBalance)===0n;
   $('run-mission').disabled=busy||!state.team.some(d=>BigInt(d.balance)>0n&&(!state.ens?.enabled||d.identity));
   renderTeam();renderActivity();renderTasks();renderBooks();renderVendors();
   $('chain-details').textContent=`${state.scheme} · x402 v2 custom scheme · receiveWithAuthorization · ${state.network} · 1% fee`;

@@ -14,6 +14,7 @@ export const COMPANY_SCHEME = 'enswhite-receive';
 const now = () => Math.floor(Date.now()/1000);
 const week = () => Math.floor(Date.now()/604800000);
 const publicError = 'Operation paused. Check contract setup, gas tank, pool funding or vendor availability; the saved transaction is retained.';
+const poolShortage=(required,available)=>Object.assign(fail(`Company pool needs ${formatUnits(required-available,6)} more test USDT at the company contract. Verified payments remain queued; do not repeat checkout.`,409),{code:'POOL_UNFUNDED'});
 
 export async function createCompany({ env = process.env, directory = resolve(env.COMPANY_DATA_DIR || `data/company/${env.CHAIN_MODE ?? 'simulated'}`), vendorFetch = fetch, chainFactory } = {}) {
   const mode = env.CHAIN_MODE ?? 'simulated';
@@ -55,6 +56,12 @@ export async function createCompany({ env = process.env, directory = resolve(env
     let running;
     const jobs = () => db.prepare('SELECT id,kind,state,hash,error,created_at FROM company_jobs ORDER BY created_at DESC').all();
     const enqueue = (id, kind, data) => db.prepare("INSERT OR IGNORE INTO company_jobs(id,kind,data,state,created_at) VALUES(?,?,?,'queued',?)").run(id, kind, JSON.stringify(data), now());
+    function funding(snapshot) {
+      const pending=db.prepare("SELECT data FROM company_jobs WHERE kind='topup' AND state IN ('queued','submitted')").all();
+      const units=pending.reduce((sum,row)=>sum+BigInt(JSON.parse(row.data).amount),0n);
+      const available=snapshot.poolAvailable==null?null:BigInt(snapshot.poolAvailable);
+      return {pendingCount:pending.length,pendingUnits:String(units),available:available===null?null:String(available),shortfall:String(available!==null&&units>available?units-available:0n),canCheckout:available===null||available>=units+5_000_000n};
+    }
     async function receipts() { return (await chain.events()).filter(event => event.kind === 'payment'); }
     async function remaining(dept) {
       const balance = await chain.balance(dept.address);
@@ -87,13 +94,15 @@ export async function createCompany({ env = process.env, directory = resolve(env
           tasks: db.prepare('SELECT * FROM company_tasks ORDER BY created_at DESC').all().map(row => ({ ...row, result: row.result ? JSON.parse(row.result) : null })),
           missions: db.prepare('SELECT * FROM company_missions ORDER BY created_at DESC').all(), ledger, jobs: jobs(),
           approvals: db.prepare('SELECT * FROM company_approvals ORDER BY created_at DESC').all(),
-          topup: { inr: 500, usdt: '5', note: 'Fixed demo allocation. Fiat is simulated, not converted.' },
+          topup: { inr: 500, usdt: '5', note: 'Fixed demo allocation. Fiat is simulated, not converted.',...funding(snapshot) },
           relayer: chain.relayerAddress, explorer: mode === 'testnet' ? EXPLORER : null,
           finance: { proposal: 'Marketing 60% · Support 30% · Finance 10%, capped by weekly allocations.', flags: ledger.filter(row => BigInt(row.amount) > BigInt(departments.find(d => d.address.toLowerCase() === row.dept.toLowerCase())?.approval ?? '0')).map(row => ({ requestId: row.requestId, message: 'Above the department approval threshold; review the matching founder approval.' })) },
         };
       },
       async order() {
         if (db.prepare('SELECT COUNT(*) n FROM company_orders').get().n >= 100) throw fail('Demo order limit reached', 429);
+        const backing=funding(await chain.snapshot());
+        if(!backing.canCheckout)throw poolShortage(BigInt(backing.pendingUnits)+5_000_000n,BigInt(backing.available));
         const order = await gateway.order(50_000);
         if (!/^order_[a-zA-Z0-9]+$/.test(order.id)) throw fail('Invalid payment-provider order');
         db.prepare('INSERT INTO company_orders VALUES(?,?,?)').run(order.id, 50_000, '5000000');
@@ -230,6 +239,8 @@ export async function createCompany({ env = process.env, directory = resolve(env
                 const submittedToday = db.prepare('SELECT COUNT(*) n FROM company_jobs WHERE raw IS NOT NULL AND created_at>=?').get(now()-now()%86400).n;
                 if (submittedToday >= 120) throw new Error('Relayer daily transaction cap exceeded');
                 if (row.kind === 'topup') {
+                  const available=(await chain.snapshot()).poolAvailable;
+                  if(available!=null&&BigInt(available)<BigInt(data.amount))throw poolShortage(BigInt(data.amount),BigInt(available));
                   data.deadline = String(now()+300);
                   data.signature = await attester.signTypedData(chain.companyDomain, TOP_UP_TYPES, { paymentId: data.paymentId, amount: data.amount, deadline: data.deadline });
                 } else if (row.kind === 'allocation') {
@@ -265,8 +276,8 @@ export async function createCompany({ env = process.env, directory = resolve(env
               db.prepare('UPDATE company_jobs SET state=?,error=? WHERE id=?').run(receipt.state, receipt.state === 'failed' ? 'Transaction reverted; no successful payment recorded' : null, row.id);
               if (row.kind === 'payment' && receipt.state !== 'submitted') db.prepare('UPDATE company_tasks SET state=?,error=? WHERE id=?').run(receipt.state, receipt.state === 'failed' ? 'Onchain policy rejected the payment' : null, row.id);
               if (receipt.state === 'submitted') break; // Keep Finance nonce and relayer transaction order deterministic.
-            } catch {
-              db.prepare('UPDATE company_jobs SET error=? WHERE id=?').run(publicError, row.id);
+            } catch(error) {
+              db.prepare('UPDATE company_jobs SET error=? WHERE id=?').run(error.code==='POOL_UNFUNDED'?error.message:publicError, row.id);
               break;
             }
           }

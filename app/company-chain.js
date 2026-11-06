@@ -117,7 +117,11 @@ export async function createRealCompanyChain(env, config) {
       },
       async balance(address) { return base.token.balanceOf(address); },
       async allocationNonce() { return String(await contract.allocationNonce()); },
-      async snapshot() { return { companyBalance: String(await contract.companyBalance()), feePool: String(await contract.feePool()), relayerWbt: String(await base.provider.getBalance(relayer.address)), treasuryUsdt: String(await base.token.balanceOf(getAddress(env.TREASURY_ADDRESS))) }; },
+      async snapshot() {
+        const [credit,fees,gas,treasury,pool]=await Promise.all([contract.companyBalance(),contract.feePool(),base.provider.getBalance(relayer.address),base.token.balanceOf(getAddress(env.TREASURY_ADDRESS)),base.token.balanceOf(address)]);
+        const available=pool-credit-fees;
+        return {companyBalance:String(credit),feePool:String(fees),relayerWbt:String(gas),treasuryUsdt:String(treasury),poolAvailable:String(available>0n?available:0n)};
+      },
       async prepare(kind, data) {
         if ((await base.provider.getNetwork()).chainId !== 1874n) throw new Error('Wrong chain');
         if (await base.provider.getBalance(relayer.address) < 1000000000000000n) throw new Error('Relayer gas tank low; fund WBT before continuing');

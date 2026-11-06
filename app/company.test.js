@@ -108,6 +108,28 @@ test('saved company transactions recover from an ambiguous broadcast without dup
   assert.equal(company.db.prepare('SELECT COUNT(*) n FROM company_events').get().n,1);
 });
 
+test('pool shortage blocks checkout, preserves captured credits and settles them once prefunded',async t=>{
+  let inventory=20_000_000n;
+  const {company}=await setup(t,{chainFactory:async(db,config)=>{
+    const chain=createSimulatedCompanyChain(db,config);
+    return {...chain,async snapshot(){const state=await chain.snapshot();return {...state,poolAvailable:String(inventory-BigInt(state.companyBalance)-BigInt(state.feePool))}}};
+  }});
+  const orders=[];
+  for(let i=0;i<4;i++){const order=await company.order();orders.push(order);await company.simulate(order.id)}
+  await assert.rejects(company.order(),error=>error.status===409&&/Company pool needs/.test(error.message));
+  assert.equal(company.db.prepare('SELECT COUNT(*) n FROM company_orders').get().n,4);
+  inventory=0n;await company.processJobs();
+  let state=await company.state();
+  assert.equal(state.topup.pendingCount,4);assert.equal(state.topup.shortfall,'20000000');assert.equal(state.topup.canCheckout,false);
+  assert.match(state.jobs.find(row=>row.error).error,/do not repeat checkout/);
+  assert.equal(company.db.prepare('SELECT COUNT(*) n FROM company_jobs WHERE raw IS NOT NULL').get().n,0);
+  inventory=20_000_000n;await company.processJobs();
+  state=await company.state();assert.equal(state.companyBalance,'20000000');assert.equal(state.topup.pendingCount,0);assert.equal(state.topup.canCheckout,false);
+  assert(state.jobs.every(row=>row.state==='confirmed'&&row.error===null));
+  await company.simulate(orders[0].id);await company.processJobs();assert.equal((await company.state()).companyBalance,'20000000');
+  inventory=25_000_000n;assert.equal((await company.state()).topup.canCheckout,true);await company.order();
+});
+
 test('company founder login and state-changing requests require the password and correct origin', async t => {
   const { company }=await setup(t,{env:{FOUNDER_PASSWORD:'long-founder-password'}});
   const server=createServer();await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
