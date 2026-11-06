@@ -226,12 +226,107 @@
       "hash": "0x34c3fe833988fadf98c8e72f066b00250ba69ef3b63c61e1e81822ba9f8a324d"
     }
   ],
-  "status": "Provisioning and one captured sandbox top-up verified; mission and reviews pending",
+  "status": "Launch, hire, funding, work, delivery and vendor reputation verified live; founder employee ratings pending",
   "topUp": {
     "transaction": "0xf0ee5ae84f16d45f525f74ec45dc99d066506a77ccdfd948d3d60476e45572da",
     "block": 12404756,
     "testUsdtUnits": "5000000",
     "demoINR": 500,
     "verified": true
+  },
+  "allocations": [
+    {
+      "transaction": "0x4c841131e860cd38226e2a0fb77a6df2b8d47eb6a94db51e4f91e3a4ae41709c",
+      "state": "confirmed",
+      "department": "0x14F7F2b553E1064F28a93B06F6f2d45902D92959",
+      "units": "300000"
+    },
+    {
+      "transaction": "0xa2b8ebe51bf95eadb6bec970166a4ebea5bf4de033248901ddb87c21d7873981",
+      "state": "confirmed",
+      "department": "0x1c0C7D7F9adCff272D924ca7816159f67042e55A",
+      "units": "100000"
+    }
+  ],
+  "mission": {
+    "id": "43066552-bb92-413f-a3f6-dfc2e5f6a550",
+    "status": "All three real-model employee runs completed; Kit unlocked",
+    "runs": [
+      {
+        "department": "marketing",
+        "source": "llm",
+        "state": "completed",
+        "calls": 5
+      },
+      {
+        "department": "support",
+        "source": "llm",
+        "state": "completed",
+        "calls": 2
+      },
+      {
+        "department": "finance",
+        "source": "llm",
+        "state": "completed",
+        "calls": 2
+      }
+    ],
+    "payments": [
+      {
+        "vendor": "copydesk",
+        "amount": "100000",
+        "hash": "0x8fa7bca9f5ea4155954d6db4f2e68d4438ebaafc34e35282bf47b12962a57a4c",
+        "state": "confirmed"
+      },
+      {
+        "vendor": "pixelpress",
+        "amount": "200000",
+        "hash": "0x4ae3dfae29629dd56252529ba3dcdba88a40659f38d47a7a644bd355a7bdaf41",
+        "state": "confirmed"
+      },
+      {
+        "vendor": "lingualink",
+        "amount": "100000",
+        "hash": "0xa894b8f06c823df97529aa340bdb433b94bd9bd42a0c72a3c797a67eb260b2b5",
+        "state": "confirmed"
+      }
+    ],
+    "grossUnits": "400000",
+    "feeUnits": "4000",
+    "qualityLimit": "Marketing rated PixelPress 2/5 and flagged escaped nested markup and an unnecessary policy caveat; the landing section needs cleanup before publication."
+  },
+  "reviews": [
+    {
+      "kind": "vendor",
+      "target": "copydesk",
+      "score": 4,
+      "state": "confirmed",
+      "hash": "0x8ceff90053528e3d58b973967c0cfa21f0cabc471ba3425ccc49a95a97c3ada1"
+    },
+    {
+      "kind": "vendor",
+      "target": "pixelpress",
+      "score": 2,
+      "state": "confirmed",
+      "hash": "0x5bbfd70474fe8ff15ea28831d1433e9f48b0edaa01d37c038abceb3087937316"
+    },
+    {
+      "kind": "vendor",
+      "target": "lingualink",
+      "score": 4,
+      "state": "confirmed",
+      "hash": "0x824106e659137e495ebf7fcb16c1f49a20eaa9d5c63e89b7a0915191016b74bb"
+    }
+  ],
+  "vendorReputationVerification": {
+    "allConfirmed": true,
+    "paymentProofsMatch": true,
+    "fileHashesMatch": true,
+    "summaryClientList": "Three Cedar Studio department wallets only",
+    "summaryValues": {
+      "copydesk": 80,
+      "pixelpress": 40,
+      "lingualink": 80
+    }
   }
 }
