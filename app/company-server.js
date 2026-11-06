@@ -17,6 +17,7 @@ export function createCompanyApp(company, origin, { guest = false } = {}) {
   sessionRoutes(app, company, origin, { login: !guest, guest });
   let stateRead;
   app.get('/api/state', async (req, res) => {stateRead??=Promise.resolve().then(()=>company.state()).finally(()=>{stateRead=null});res.json(await stateRead)});
+  app.get('/api/attention',(req,res)=>res.json(company.attention()));
   app.get('/api/agent-runs',(req,res)=>res.json(company.agentStore.runs()));
   app.get('/api/agent-runs/:id',(req,res)=>res.json(company.agentHistory(req.params.id)));
   app.post('/api/agent-runs/:id/retry',(req,res)=>{const result=company.retryAgent(req.params.id);void company.processJobs().catch(()=>{});res.json(result)});
@@ -44,7 +45,7 @@ export function createCompanyApp(company, origin, { guest = false } = {}) {
   app.post('/api/simulate', async (req, res) => { const result = await company.simulate(req.body.orderId); await company.processJobs(); res.json(result); });
   app.post('/api/allocate', async (req, res) => { const result = await company.allocate(req.body.proposalId);void company.processJobs().catch(()=>{});res.json(result); });
   app.post('/api/missions', async (req, res) => { const result = await company.mission(req.body.title, req.get('idempotency-key'));void company.processJobs().catch(()=>{});res.status(202).json(result); });
-  app.post('/api/approvals/:id', async (req, res) => { company.approve(req.params.id, req.body.approved); await company.processJobs(); res.json({ accepted: true }); });
+  app.post('/api/approvals/:id', async (req, res) => { company.approve(req.params.id, req.body.approved); void company.processJobs().catch(()=>{}); res.json({ accepted: true }); });
   app.get('/api/books.csv', async (req, res) => res.type('csv').set('Content-Disposition', 'attachment; filename="enswhite-books.csv"').send(await company.csv()));
   app.get('/api/x402/supported', (req, res) => res.json({ kinds: [{ x402Version: 2, scheme: COMPANY_SCHEME, network: NETWORK }], extensions: [], signers: { [NETWORK]: [company.chain.relayerAddress] } }));
   app.post('/api/x402/verify', async (req, res) => {

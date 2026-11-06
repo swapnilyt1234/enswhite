@@ -32,6 +32,15 @@ async function setup(t, options = {}) {
 }
 async function fund(company) { const order = await company.order(); await company.simulate(order.id); await company.processJobs(); return order; }
 
+test('founder attention stays available without live RPC and answering clears the visible blocker',async t=>{
+ const {company}=await setup(t);const id=company.agentStore.ensure('needs-facts','support','offline');
+ company.db.prepare('INSERT INTO founder_questions VALUES(?,?,?,NULL,?)').run('question-1',id,'What is the return policy?',Date.now());
+ company.chain.snapshot=async()=>{throw Object.assign(new Error('RPC timeout'),{code:'TIMEOUT'})};
+ const attention=company.attention();assert.equal(attention.questions[0].question,'What is the return policy?');assert.equal(attention.questions[0].run_id,id);
+ company.answerFounder('question-1','Not confirmed; do not promise a return period.');assert.equal(company.attention().questions.length,0);assert(company.activity.since().some(x=>x.department==='company'&&x.kind==='founder_answer'));
+ assert.throws(()=>company.answerFounder('question-1','Change the previous answer'),/already answered/);
+});
+
 test('a repeated mission submit with a fresh browser key reuses the active brief for sixty seconds',async t=>{
  const {company}=await setup(t);const first=await company.mission('Launch the candle collection','mission-submit-first'),second=await company.mission('Launch the candle collection','mission-submit-second');
  assert.equal(second.id,first.id);assert.equal(second.reused,true);assert.equal(company.db.prepare('SELECT COUNT(*) n FROM company_missions').get().n,1);assert.equal(company.agentStore.runs().length,3);
@@ -43,6 +52,11 @@ test('requesting Finance again resumes the same untouched failed proposal withou
  const first=await company.requestFinanceProposal(),runId=`${first.id}:finance:allocation`;company.agentStore.checkpoint(runId,{state:'failed',error:'Company context could not be loaded.'});
  const retried=await company.requestFinanceProposal();assert.equal(retried.id,first.id);assert.equal(company.agentStore.run(runId).state,'queued');assert.equal(company.agentStore.runs().length,1);assert.equal(company.agentStore.run(runId).calls,0);
  company.agentStore.checkpoint(runId,{state:'failed',calls:1});await company.requestFinanceProposal();assert.equal(company.agentStore.run(runId).state,'failed','A run with tool decisions needs explicit saved-run recovery');
+});
+
+test('Finance requests queue without an RPC read and retain the same identity after a transport failure',async t=>{
+ const {company}=await setup(t,{chainFactory:async(db,config)=>({...createSimulatedCompanyChain(db,config),snapshot:async()=>{throw new Error('must not read RPC while accepting a proposal request')}})});
+ const first=await company.requestFinanceProposal(),second=await company.requestFinanceProposal();assert.equal(first.id,second.id);assert.equal(company.agentStore.runs().length,1);assert.equal(company.agentStore.runs()[0].state,'queued');
 });
 
 test('approval retries a transient live balance read and enqueues each saved allocation only once',async t=>{

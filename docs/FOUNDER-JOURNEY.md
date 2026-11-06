@@ -46,3 +46,10 @@ Local browser previews (isolated simulated workspace; these screenshots do not c
 ![Launch and team selection](images/launch-hire-journey.png)
 
 ![Six-step founder workspace](images/founder-six-step-journey.png)
+
+
+### Fresh demo and automatic recovery
+
+Begin at `/`, choose **Launch my real testnet company**, then **Create another company** if a workspace is already selected. Existing companies remain in the switcher. The founder chooses the business and team in the UI, makes one Razorpay test checkout, requests and approves Finance's proposal, assigns a mission, answers business questions, approves purchases, downloads the Campaign Kit and submits reviews.
+
+Unanswered questions and purchase approvals appear above every workspace tab through an independent, database-only attention endpoint. Agent RPC/model transport failures automatically resume the saved call after 5/10/20 seconds, at most three recoveries per assignment, without resetting tool/API limits or changing request identities. Policy refusals stay blocked. Finance requests enqueue without a chain read; actual proposals and spending still check live policy. Testnet agent reads run separately from the serialized settlement queue. The browser retries only saved Finance requests, allocation approvals, answers and purchase decisions on transport/502–504 failures, at most three times; it never repeats a checkout automatically.

@@ -31,3 +31,10 @@ test('buy maximums cannot bypass policy and questions resume only after a founde
  db.prepare('UPDATE founder_questions SET answer=? WHERE id=?').run('Returns within 7 days',waiting.questionId);
  assert.deepEqual(await executeJourneyTool(options,run,'ask_founder',{question:'What is your return policy?'}),{answer:'Returns within 7 days'});
 });
+
+
+test('a waiting question survives an observation timeout without consuming another model decision',async t=>{
+ const db=new DatabaseSync(':memory:'),store=createAgentStore(db),activity=createActivity(db);let reads=0,ready=false,models=0,questions=0;
+ const runtime=createAgentRuntime({db,store,activity,env:{OPENAI_MODEL:'test',OPENAI_API_KEY:'test'},context:async()=>({mission:'FAQ'}),observe:async()=>{if(++reads===3)throw Object.assign(new Error('RPC timeout'),{code:'TIMEOUT'});return String(ready)},tools:{authorize:async()=>{},execute:async(run,name)=>{if(name==='ask_founder'){questions++;return ready?{answer:'Not confirmed'}:{waiting:true,resumeSameCall:true}}return{complete:true,summary:'Done'}}},modelFetch:async()=>{const name=models++?'deliver':'ask_founder';return Response.json({output:[{type:'function_call',name,call_id:name,arguments:JSON.stringify(name==='ask_founder'?{question:'Shipping?'}:{artifact:'FAQ',reviews:[]})}]})}});
+ t.after(async()=>{await runtime.close();activity.close();db.close()});const id=store.ensure('waiting','support','llm','mission',2);await runtime.tick();assert.equal(store.run(id).state,'waiting');ready=true;await runtime.tick();assert.equal(store.run(id).state,'recovering');store.checkpoint(id,{next_retry:0});await runtime.tick();assert.equal(store.run(id).state,'completed');assert.equal(models,2);assert.equal(questions,2);assert.equal(store.run(id).calls,2);
+});

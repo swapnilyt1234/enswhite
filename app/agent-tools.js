@@ -9,7 +9,7 @@ export function createAgentTools({db,store,service,activity}){
  const tasks=run=>db.prepare('SELECT id,vendor,state,result,amount FROM company_tasks WHERE mission_id=?').all(run.mission_id).map(x=>({...x,result:x.result?JSON.parse(x.result):null}));
  const waiting=(state,message)=>({waiting:true,state,message});
  const executor={
-  async authorize(run){try{return await service.assertEmployee(run.department)}catch(error){throw new Error(/fired or expired/i.test(error.message)?'Employee is fired or expired. Work was not initiated.':'Employee identity could not be verified. Work was not initiated.')}},
+  async authorize(run){try{return await service.assertEmployee(run.department)}catch(error){throw Object.assign(new Error(/fired or expired/i.test(error.message)?'Employee is fired or expired. Work was not initiated.':'Employee identity could not be verified. Work was not initiated.'),{code:error.code})}},
   async execute(run,name,args){
    if(run.version===2)return executeJourneyTool({db,store,service,activity,legacy:(name,args)=>executor.execute({...run,version:1},name,args)},run,name,args);
    const definition=toolsFor(run)?.find(x=>x.name===name);if(!definition)refuse('This employee cannot use that tool.');validateArguments(definition.parameters,args);await service.assertEmployee(run.department);

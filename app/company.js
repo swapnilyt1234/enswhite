@@ -140,6 +140,12 @@ export async function createCompany({ env = process.env, directory = resolve(env
       async allocationNeeds(missionId){const ledger=await service.agentLedger(missionId),needs={marketing:'0',support:'0',finance:'0'};for(const dept of ledger.team){const demand=vendors.filter(v=>v.dept===dept.id&&!db.prepare('SELECT id FROM company_tasks WHERE mission_id=? AND vendor=?').get(missionId,v.id)).reduce((n,v)=>n+BigInt(v.price),0n);needs[dept.id]=String(demand>BigInt(dept.available)?demand-BigInt(dept.available):0n)}return needs},
       async agentContext(run){const row=db.prepare('SELECT title FROM company_missions WHERE id=?').get(run.mission_id),snapshot=db.prepare('SELECT profile FROM company_profiles WHERE mission_id=?').get(run.mission_id);return{mission:row?.title||'Recommend startup funds for the registered campaign services',business:snapshot?JSON.parse(snapshot.profile):businessProfile(),hiredDepartments:departments.map(x=>x.id),employee:await service.assertEmployee(run.department),purpose:run.purpose,source:run.source,memory:agentStore.memory(run.department),allocationNeeds:run.department==='finance'?await service.allocationNeeds(run.mission_id):null,work:db.prepare('SELECT id,dept,vendor,state,result FROM company_tasks WHERE mission_id=?').all(run.mission_id).map(x=>({...x,result:x.result?JSON.parse(x.result):null})),messages:agentStore.messages(run.mission_id).filter(x=>x.kind!=='model_output').slice(-10)}},
       answerFounder(id,answer){if(typeof answer!=='string'||!answer.trim()||answer.length>1500)throw fail('Answer must contain 1–1500 characters');const row=db.prepare('SELECT * FROM founder_questions WHERE id=?').get(id);if(!row)throw fail('Question not found',404);if(row.answer&&row.answer!==answer)throw fail('This question was already answered',409);db.prepare('UPDATE founder_questions SET answer=? WHERE id=?').run(answer,id);activity.record('company','founder_answer','The founder answered an employee question.',{data:{questionId:id}});return{id}},
+      attention(){return{
+        questions:db.prepare('SELECT id,run_id,question,answer FROM founder_questions WHERE answer IS NULL ORDER BY created_at').all(),
+        paused:agentStore.runs().filter(x=>x.state==='failed'),
+        recovering:agentStore.runs().filter(x=>x.state==='recovering'),
+        approvals:db.prepare("SELECT id,dept,vendor,amount,mission_id FROM company_tasks WHERE state='approval' ORDER BY created_at").all(),
+      }},
       agentHistory(id){const run=agentStore.runs().find(x=>x.id===id);if(!run)throw fail('Employee run not found',404);return{run,actions:agentStore.actions(id),messages:agentStore.messages(run.mission_id).filter(x=>x.kind!=='model_output')}},
       retryAgent:id=>runtime.retry(id),
       session(token, loginPassword) {
@@ -156,7 +162,7 @@ export async function createCompany({ env = process.env, directory = resolve(env
         const team = [];
         for (const dept of departments) {
           const own = ledger.filter(row => row.dept.toLowerCase() === dept.address.toLowerCase());
-          const runs=agentStore.runs().filter(x=>x.department===dept.id),currentRun=runs.find(x=>['queued','thinking','executing','waiting'].includes(x.state))||runs[0]||null;
+          const runs=agentStore.runs().filter(x=>x.department===dept.id),currentRun=runs.find(x=>['queued','thinking','executing','waiting','recovering'].includes(x.state))||runs[0]||null;
           team.push({ ...dept, capabilities:EMPLOYEES[dept.id].capabilities,currentRun,wbtBalance:chain.provider?String(await chain.provider.getBalance(dept.address)):null,weekly:simulatedWeekly(dept), balance: String(await chain.balance(dept.address)), remaining: String(await remaining(dept)), spent: own.reduce((sum, row) => sum + BigInt(row.amount), 0n).toString(), lastPurchase: own.at(-1) ?? null });
         }
         const organization = directoryENS ? await directoryENS.organization() : [];
@@ -259,9 +265,9 @@ export async function createCompany({ env = process.env, directory = resolve(env
         db.prepare("INSERT OR IGNORE INTO finance_proposals VALUES(?,?,?,?,?,'draft',?)").run(id,missionId,JSON.stringify(allocations),rationale,source,Date.now());
         activity.record('finance','allocation_proposed',rationale,{mission:missionId,data:{proposalId:id,allocations,source},key:'proposal:'+id});return{id,allocations,rationale,requiresFounderApproval:true};
       },
-      async requestFinanceProposal(){if(db.prepare("SELECT COUNT(*) n FROM agent_runs WHERE purpose='allocation'").get().n>=20)throw fail('Finance proposal run limit reached',429);const snapshot=await retryRPCRead(()=>chain.snapshot()),nonce=await retryRPCRead(()=>chain.allocationNonce()),id='allocation_'+keccak256(toUtf8Bytes(`${week()}:${snapshot.companyBalance}:${nonce}`)).slice(2,34);agentStore.ensure(id,'finance',env.AGENT_MODE==='llm'?'llm':'offline','allocation',env.AGENT_MODE==='llm'?2:1);const runId=`${id}:finance:allocation`,saved=agentStore.run(runId);if(saved.state==='failed'&&saved.calls===0&&saved.attempts===0)runtime.retry(runId);return{id}},
+      async requestFinanceProposal(){if(db.prepare("SELECT COUNT(*) n FROM agent_runs WHERE purpose='allocation'").get().n>=20)throw fail('Finance proposal run limit reached',429);const checkpoint=db.prepare("SELECT id,state FROM company_jobs WHERE kind IN ('topup','allocation') ORDER BY id").all(),id='allocation_'+keccak256(toUtf8Bytes(`${week()}:${JSON.stringify(checkpoint)}`)).slice(2,34);agentStore.ensure(id,'finance',env.AGENT_MODE==='llm'?'llm':'offline','allocation',env.AGENT_MODE==='llm'?2:1);const runId=`${id}:finance:allocation`,saved=agentStore.run(runId);if(saved.state==='failed'&&saved.calls===0&&saved.attempts===0)runtime.retry(runId);return{id}},
       async allocate(proposalId) {
-        await service.assertEmployee('finance');
+        await retryRPCRead(()=>service.assertEmployee('finance'));
         if(!proposalId){if(env.AGENT_MODE==='llm')throw fail('Request and review a Finance proposal before approval');const missionId='allocation_'+week(),needs=await service.allocationNeeds(missionId);proposalId=(await service.proposeAllocation(needs,'Offline task-cost proposal for the registered campaign services, after existing department funds.',missionId)).id;}
         const proposal=db.prepare('SELECT * FROM finance_proposals WHERE id=?').get(proposalId);if(!proposal)throw fail('Finance proposal not found');if(proposal.state==='approved')return{accepted:true};
         const allocations=JSON.parse(proposal.allocations);await retryRPCRead(()=>service.proposeAllocation(allocations,proposal.rationale,proposal.mission_id,proposal.source));
@@ -272,7 +278,7 @@ export async function createCompany({ env = process.env, directory = resolve(env
         if (typeof title !== 'string' || title.trim().length < 5 || title.length > 600 || !/^[a-zA-Z0-9_-]{8,80}$/.test(requestKey ?? '')) throw fail('Enter a mission (5–600 characters) and an idempotency key');
         const old = db.prepare('SELECT * FROM company_missions WHERE request_key=?').get(requestKey);
         if (old && old.title !== title.trim()) throw fail('Idempotency key belongs to a different mission');
-        if(!old){const duplicate=db.prepare("SELECT m.id FROM company_missions m WHERE m.title=? AND m.created_at>=? AND EXISTS(SELECT 1 FROM agent_runs r WHERE r.mission_id=m.id AND r.state IN ('queued','thinking','executing','waiting')) ORDER BY m.created_at LIMIT 1").get(title.trim(),now()-60);if(duplicate)return{id:duplicate.id,reused:true};}
+        if(!old){const duplicate=db.prepare("SELECT m.id FROM company_missions m WHERE m.title=? AND m.created_at>=? AND EXISTS(SELECT 1 FROM agent_runs r WHERE r.mission_id=m.id AND r.state IN ('queued','thinking','executing','waiting','recovering')) ORDER BY m.created_at LIMIT 1").get(title.trim(),now()-60);if(duplicate)return{id:duplicate.id,reused:true};}
         if (!old && db.prepare('SELECT COUNT(*) n FROM company_missions').get().n >= (env.GUEST_MODE==='true'||env.VISITOR_COMPANY==='true'?5:30)) throw fail('Demo mission limit reached', 429);
         const id = old?.id ?? randomUUID();
         if (!old) db.prepare('INSERT INTO company_missions VALUES(?,?,?,?,?)').run(id, requestKey, title.trim(), 'planning', now());
@@ -354,7 +360,7 @@ export async function createCompany({ env = process.env, directory = resolve(env
         if (running) return running;
         running = (async () => {
           for(const job of employment?.jobs()||[])if(['confirmed','failed'].includes(job.state))activity.record(job.label,'employment_updated',job.state==='confirmed'?`The employee ${job.action==='fire'?'was removed':job.action==='hire'?'was hired':'employment was renewed'}.`:'The employee update needs operator attention.',{data:{requestId:job.id,hash:job.hash,network:'sepolia'},key:`employment-result:${job.id}`});
-          await runtime.tick();
+          if(mode==='testnet')runtime.start();else await runtime.tick();
           // One request at a time keeps Finance's ENS edit and allocation nonce ordered.
           const request=db.prepare("SELECT * FROM company_budget_requests WHERE state IN ('waiting','ens','allocating') ORDER BY rowid LIMIT 1").get();
           if(request){try{
@@ -472,7 +478,7 @@ export async function createCompany({ env = process.env, directory = resolve(env
             const headline=JSON.parse(copy.result).content.split('\n').find(line=>line.trim())?.replace(/^#+\s*/,'').slice(0,100)||'Explore our collection';
             try{await service.buy('marketing','pixelpress',`Headline: ${headline}\n${handoff.task}`,handoff.mission_id);db.prepare("UPDATE company_handoffs SET state='forwarded' WHERE mission_id=? AND vendor=?").run(handoff.mission_id,handoff.vendor);activity.record('marketing','headline_handoff','I handed CopyDesk’s delivered headline to PixelPress for the banner.',{mission:handoff.mission_id,data:{headline},key:`handoff:${handoff.mission_id}`})}catch{}
           }
-          await runtime.tick();
+          if(mode==='testnet')runtime.start();else await runtime.tick();
           for(const mission of db.prepare('SELECT m.* FROM company_missions m LEFT JOIN company_kits k ON k.mission_id=m.id WHERE k.mission_id IS NULL').all()){
             const runs=agentStore.runs().filter(x=>x.mission_id===mission.id);if(runs.length&&runs.some(x=>x.state!=='completed'))continue;
             const tasks=db.prepare('SELECT * FROM company_tasks WHERE mission_id=?').all(mission.id),plan=db.prepare('SELECT plan FROM company_plans WHERE mission_id=?').get(mission.id);
