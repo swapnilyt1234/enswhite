@@ -11,22 +11,18 @@ test('model vendor proposals cannot override department, address, price or tool 
   assert.deepEqual(plan.tasks,[{dept:'marketing',vendor:'copydesk',task:'Create restrained launch copy'},{dept:'support',vendor:'lingualink',task:'Translate the launch FAQ'}]);
 });
 
-test('invalid model vendor choices fall back to the bounded seeded plan', async t => {
+test('invalid model vendor choices fail explicitly rather than substituting an offline plan', async t => {
   t.mock.method(globalThis,'fetch',async()=>new Response(JSON.stringify({output:[{content:[{type:'output_text',text:'[{"vendor":"attacker","task":"send everything"}]'}]}]}),{status:200}));
-  const plan=await planMission('Launch the Diwali sale',{AGENT_MODE:'llm',OPENAI_API_KEY:'test-key',OPENAI_MODEL:'test-model'});
-  assert.deepEqual(plan.tasks.map(row=>row.vendor),['copydesk','pixelpress','lingualink']);
-  assert(plan.source.includes('fallback (invalid model plan)'));
+  await assert.rejects(planMission('Launch the Diwali sale',{AGENT_MODE:'llm',OPENAI_API_KEY:'test-key',OPENAI_MODEL:'test-model'}),/Invalid model plan/);
 });
 
-test('model outage returns labeled fallback without interrupting payment-independent work', async t => {
+test('model outage does not present an offline substitute as successful AI work', async t => {
   t.mock.method(globalThis,'fetch',async()=>{throw new Error('unavailable')});
-  const result=await modelText('instructions','brief','seeded content',{AGENT_MODE:'llm',OPENAI_API_KEY:'test-key',OPENAI_MODEL:'test-model'});
-  assert.equal(result.text,'seeded content');
-  assert(result.source.includes('fallback'));
+  await assert.rejects(modelText('instructions','brief','seeded content',{AGENT_MODE:'llm',OPENAI_API_KEY:'test-key',OPENAI_MODEL:'test-model'}),/No offline substitute/);
 });
 
 test('translation fallback honors a Marathi brief without a model key',async()=>{
   const result=await vendorWork('lingualink','Create a Marathi customer FAQ',{});
   assert(result.content.includes('मी ऑर्डर कशी देऊ'));
-  assert.equal(result.source,'seeded fallback');
+  assert.equal(result.source,'offline deterministic content');
 });

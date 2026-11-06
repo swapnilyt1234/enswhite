@@ -16,7 +16,7 @@ async function setup(t, options = {}) {
   const env = { CHAIN_MODE: 'simulated', COMPANY_DATA_DIR: join(directory, 'company'), VENDOR_DATA_DIR: join(directory, 'vendors'), ...options.env };
   const vendors = [], urls = new Map();
   for (const info of VENDORS) {
-    const vendor = await createVendor(info.id, env), server = createServer(vendor.app);
+    const vendor = await createVendor(info.id, {...env,...options.vendorEnv}), server = createServer(vendor.app);
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     const url = `http://127.0.0.1:${server.address().port}`;
     urls.set(`http://127.0.0.1:${info.port}`, url); vendors.push({ vendor, server, url });
@@ -25,11 +25,26 @@ async function setup(t, options = {}) {
     const parsed = new URL(url);
     return fetch(urls.get(parsed.origin) + parsed.pathname, init);
   };
-  const company = await createCompany({ env, vendorFetch, ...options });
+  const company = await createCompany({ ...options, env, vendorFetch });
   t.after(async () => { await company.close(); for (const row of vendors) { await new Promise(resolve => row.server.close(resolve)); row.vendor.close(); } rmSync(directory, { recursive: true, force: true }); });
   return { company, env, vendorFetch, vendors };
 }
 async function fund(company) { const order = await company.order(); await company.simulate(order.id); await company.processJobs(); return order; }
+
+test('mocked Responses employees use tools end to end, hand off real copy and preserve founder policy facts',async t=>{
+ const scripts={marketing:[['read_context',{}],['create_campaign_brief',{objective:'Launch sandalwood candles',audience:'Premium home decor buyers',designNotes:'Use the actual headline and forest brand palette'}],['request_quote',{vendor:'copydesk',brief:'Write our sandalwood launch copy'}],['purchase_service',{vendor:'copydesk'}],['read_work',{vendor:'copydesk'}],['request_quote',{vendor:'pixelpress',brief:'Use the delivered copy and product details'}],['purchase_service',{vendor:'pixelpress'}],['submit_work',{summary:'Campaign copy and banner delivered with receipts.'}]],support:[['read_context',{}],['draft_faq',{questions:[{question:'When does it ship?',source:'shipping'},{question:'Can I return it?',source:'returns'}]}],['review_faq',{}],['request_quote',{vendor:'lingualink',brief:'Translate only the reviewed facts'}],['purchase_service',{vendor:'lingualink'}],['submit_work',{summary:'Sourced customer help and translation draft delivered.'}]],finance:[['read_context',{}],['read_ledger',{}],['review_spending',{}],['propose_allocation',{marketingUnits:'0',supportUnits:'0',financeUnits:'0',rationale:'Existing founder-approved funds cover the three registered service costs.'}],['prepare_report',{}],['prepare_report',{}],['submit_work',{summary:'All three vendor receipts reconcile.'}]]};
+ const indexes={marketing:0,support:0,finance:0},requests=[];
+ const modelFetch=async(url,init)=>{const body=JSON.parse(init.body),role=body.instructions.match(/^You are EnsWhite (\w+)/)[1],index=indexes[role]++,[name,args]=scripts[role][index];requests.push(body);return new Response(JSON.stringify({output:[{type:'function_call',call_id:`${role}_${index}`,name,arguments:JSON.stringify(args)}]}))};
+ const {company}=await setup(t,{env:{AGENT_MODE:'llm',OPENAI_API_KEY:'private-test-key',OPENAI_MODEL:'fixture-model'},vendorEnv:{AGENT_MODE:'offline'},modelFetch});
+ company.updateBusiness({name:'Acme Sandalwood',description:'Sandalwood candles for premium home decor',audience:'Home decor buyers',language:'Hindi',productName:'Sandalwood candle',shippingPolicy:'Ships in 4 business days.',returnPolicy:'Unopened items may be returned within 7 days.',brandColours:'#234f40,#e6d5b8'});
+ await fund(company);const proposal=await company.proposeAllocation({marketing:'300000',support:'100000',finance:'0'},'Founder-approved fixture budget','fixture-funding');await company.allocate(proposal.id);await company.processJobs();
+ const mission=await company.mission('Launch a sandalwood candle campaign','model-acme-mission');await company.processJobs();let state=await company.state();const banner=state.tasks.find(x=>x.vendor==='pixelpress');assert.equal(banner.state,'approval');assert.equal(state.ledger.length,2);
+ company.approve(banner.id,true);await company.processJobs();state=await company.state();assert(state.agentRuns.filter(x=>x.mission_id===mission.id).every(x=>x.state==='completed'));
+ const kit=company.kit(mission.id);assert.equal(kit.receipts.length,3);assert.equal(kit.financialReport.grossUnits,'400000');assert(kit.banner.includes(kit.copy.split('\n')[0]));assert(kit.faq.includes('Ships in 4 business days.'));assert(kit.faq.includes('within 7 days'));
+ assert(state.agentMessages.some(x=>x.kind==='design_handoff'&&x.content.copy===kit.copy));assert(requests.some(x=>x.input.some(i=>i.type==='function_call_output'&&i.output.includes('Ships in 4 business days.'))));
+ assert(!JSON.stringify(requests).includes('private-test-key'));assert(!JSON.stringify(requests).includes('policySignature'));assert(!JSON.stringify(requests).includes('privateKey'));
+ const before=state.ledger.length;await company.mission('Launch a sandalwood candle campaign','model-acme-mission');await company.processJobs();assert.equal((await company.state()).ledger.length,before);
+});
 
 test('Finance funds a shortfall once, explains its decision and preserves founder approval',async t=>{
  const {company}=await setup(t);await fund(company);
@@ -61,8 +76,8 @@ test('founder tops up, Finance allocates, departments pay three vendors, approva
   assert.equal((await company.state()).companyBalance, '5000000');
   await company.allocate(); await company.allocate(); await company.processJobs();
   let state = await company.state();
-  assert.deepEqual(state.team.map(d => d.balance), ['3000000','1500000','500000']);
-  assert.equal(state.companyBalance, '0');
+  assert.deepEqual(state.team.map(d => d.balance), ['300000','100000','0']);
+  assert.equal(state.companyBalance, '4600000');
   await company.mission('Launch our Diwali sale', 'mission-first-001');
   await company.processJobs();
   state = await company.state();
@@ -75,8 +90,8 @@ test('founder tops up, Finance allocates, departments pay three vendors, approva
   assert.equal(state.tasks.filter(row => row.state === 'delivered').length, 3);
   assert.equal(state.ledger.reduce((sum,row)=>sum+BigInt(row.amount),0n), 400000n);
   assert.equal(state.feePool, '4000');
-  assert.equal(state.team[0].balance, '2700000');
-  assert.equal(state.team[1].balance, '1400000');
+  assert.equal(state.team[0].balance, '0');
+  assert.equal(state.team[1].balance, '0');
   const kit=company.kit(state.missions[0].id);
   assert.equal(kit.receipts.length,3);assert.match(kit.memo,/0.004/);
   const headline=kit.copy.split('\n')[0];assert(kit.banner.includes(headline));
@@ -99,7 +114,7 @@ test('unfunded missions resume safely and approval rejection releases the reserv
   await company.processJobs();assert((await company.state()).budgetRequests.some(x=>x.state==='waiting'));
   await fund(company); await company.allocate(); await company.processJobs();
   await company.mission('Launch the spring collection', 'mission-retry-001');
-  await company.processJobs();
+  for(let i=0;i<5;i++)await company.processJobs();
   let state = await company.state();
   const banner = state.tasks.find(row => row.vendor === 'pixelpress');
   const before = state.team[0].remaining;

@@ -19,7 +19,7 @@ test('public guests have isolated simulated funds, no paid model, scoped cookies
  assert.equal(state.companyBalance,'5000000');assert.equal(state.aiMode,'offline');assert.equal(state.mode,'simulated');
  assert.equal((await call('/guest/api/state',{headers:{cookie:b}})).body.companyBalance,'0');
  await call('/guest/api/allocate',post(a,{}));
- for(let i=0;i<6;i++){const options=post(a,{title:'Launch our guest business '+i});options.headers['idempotency-key']='guest-mission-'+i;const result=await call('/guest/api/missions',options);assert.equal(result.response.status,i<5?200:429)}
+ for(let i=0;i<6;i++){const options=post(a,{title:'Launch our guest business '+i});options.headers['idempotency-key']='guest-mission-'+i;const result=await call('/guest/api/missions',options);assert.equal(result.response.status,i<5?202:429)}
  assert.equal((await fetch(origin+'/api/state')).status,404);
  assert.equal((await call('/proof/api')).body.mode,'testnet');
  assert.equal((await fetch(origin+'/guest/company-ui.js',{headers:{cookie:a}})).status,200);
