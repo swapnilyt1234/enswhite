@@ -32,6 +32,12 @@ async function setup(t, options = {}) {
 }
 async function fund(company) { const order = await company.order(); await company.simulate(order.id); await company.processJobs(); return order; }
 
+test('a repeated mission submit with a fresh browser key reuses the active brief for sixty seconds',async t=>{
+ const {company}=await setup(t);const first=await company.mission('Launch the candle collection','mission-submit-first'),second=await company.mission('Launch the candle collection','mission-submit-second');
+ assert.equal(second.id,first.id);assert.equal(second.reused,true);assert.equal(company.db.prepare('SELECT COUNT(*) n FROM company_missions').get().n,1);assert.equal(company.agentStore.runs().length,3);
+ company.db.prepare('UPDATE company_missions SET created_at=created_at-61').run();const later=await company.mission('Launch the candle collection','mission-submit-later');assert.notEqual(later.id,first.id);
+});
+
 test('requesting Finance again resumes the same untouched failed proposal without creating another run',async t=>{
  const {company}=await setup(t,{env:{AGENT_MODE:'llm',OPENAI_API_KEY:'test',OPENAI_MODEL:'fixture'}});
  const first=await company.requestFinanceProposal(),runId=`${first.id}:finance:allocation`;company.agentStore.checkpoint(runId,{state:'failed',error:'Company context could not be loaded.'});
