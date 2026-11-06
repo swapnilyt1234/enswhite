@@ -72,7 +72,7 @@ Copy [.env.company.example](.env.company.example) to `.env.company`. To enable m
 
 ## Real company deployment
 
-The earlier payment lab already completed real testnet USDT payments. The new [RelayCompany is deployed and verified](https://explorer.testnet.whitechain.io/address/0xD36605397FaFefaAe2c3eBfA95af1c732A322B31/contracts) on Whitechain Sepolia, at deployment block **12328348**. Owner configuration, pool funding and a live company mission must also complete; a local fork or simulated run is not evidence of a live mission. The earlier wallet and balance are not silently migrated.
+The [RelayCompany is deployed and verified](https://explorer.testnet.whitechain.io/address/0xD36605397FaFefaAe2c3eBfA95af1c732A322B31/contracts) on Whitechain Sepolia, at deployment block **12328348**. Its owner configuration, separate-wallet pool funding, captured Razorpay test payment, Finance allocations, founder approval and three-vendor mission have all completed on testnet. Content used the explicitly labeled seeded fallback and deterministic SVG renderer. The earlier payment-lab wallet and balance were not silently migrated.
 
 Run these from `C:\Users\swapn\Desktop\ethglobal` in your own PowerShell terminal:
 
@@ -116,7 +116,23 @@ Real transactions from the earlier payment milestone:
 - [Successful x402 exact payment: 0.1 test USDT](https://explorer.testnet.whitechain.io/tx/0x69ac20e8501e2345ad7e08855694205d9156174e736d21db831a16cf40e61ddc).
 - [Verified storage test contract](https://explorer.testnet.whitechain.io/address/0xEA836Fd7E1179777039856c02b70A3328cD3C1f3/contracts), which is neither RelayCompany nor a USDT payment.
 
-These prove the earlier real-payment milestone. The new company deployment is [0xc003ca83…109b2](https://explorer.testnet.whitechain.io/tx/0xc003ca83d53cd411b65f0e1d6b8c104f4380e2fad32ff3af295c4060e0a109b2), with [verified source](https://explorer.testnet.whitechain.io/address/0xD36605397FaFefaAe2c3eBfA95af1c732A322B31/contracts). Live company `Paid` links will be added after the mission runs. See [architecture](docs/architecture.md) and [earlier lab notes](docs/payment-lab.md).
+These prove the earlier real-payment milestone. The new company deployment is [0xc003ca83…109b2](https://explorer.testnet.whitechain.io/tx/0xc003ca83d53cd411b65f0e1d6b8c104f4380e2fad32ff3af295c4060e0a109b2), with [verified source](https://explorer.testnet.whitechain.io/address/0xD36605397FaFefaAe2c3eBfA95af1c732A322B31/contracts).
+
+### Completed real company mission
+
+- [Treasury prefunded the pool with 10 test USDT, using relayer gas](https://explorer.testnet.whitechain.io/tx/0x5d7107cde0b1478f2099c27cd8a07d4cb38a14da05e28b624e59e3f398eeada9).
+- [Verified INR 500 sandbox payment credited 5 test USDT through the attester](https://explorer.testnet.whitechain.io/tx/0x67321f5bf16cdd257d9d325c9fe6cec6c6fc4dbba4af97f19543e55b980f2e53).
+- Finance allocations: [Marketing: 3 USDT](https://explorer.testnet.whitechain.io/tx/0x5039d734fee5c3391eaedc77c4cfb1b6ecf42e89cd816918440c40e0e4614eb7), [Support: 1.5 USDT](https://explorer.testnet.whitechain.io/tx/0xe9930f94ca5428b1afd277302cd87944ebc601152ed5cc855f45618cf2f7f55f), [Finance: 0.5 USDT](https://explorer.testnet.whitechain.io/tx/0xb77a208319de5a52998fe56a2b575c1c2a251c96d5be47f4fd10849960a852f6).
+
+| Department → vendor | Gross test USDT | Fee | Net vendor receipt | Confirmed payment |
+| --- | ---: | ---: | ---: | --- |
+| Marketing → CopyDesk | 0.1 | 0.001 | 0.099 | [Paid event](https://explorer.testnet.whitechain.io/tx/0xff97023f4278ba601ac130f5f4d74724a8e3fe64c7d6feff266e966bbfc26ea9) |
+| Support → LinguaLink | 0.1 | 0.001 | 0.099 | [Paid event](https://explorer.testnet.whitechain.io/tx/0x702ff690599a048e43480382a83554072ad08ee5e51892b5ed29347d99b069d1) |
+| Marketing → PixelPress, founder approved | 0.2 | 0.002 | 0.198 | [Paid event](https://explorer.testnet.whitechain.io/tx/0x023791c76c7cc3dfaff14da9e4608947ae9cc07ae2bcf10e533eed1f84eace39) |
+
+All three work orders were delivered after receipt verification. The company fee pool is 0.004 USDT; remaining department balances are Marketing 2.7, Support 1.4 and Finance 0.5 USDT. All three departments still hold **zero WBT**. The three independent vendor earnings endpoints separately report the matching net receipts from chain events. These are real testnet token transfers following simulated fiat; the copy and translation were labeled seeded fallback, not claimed live model output.
+
+See [architecture](docs/architecture.md) and [earlier lab notes](docs/payment-lab.md).
 
 ## Why onchain
 
