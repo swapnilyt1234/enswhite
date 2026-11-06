@@ -21,7 +21,9 @@ export const ENS_NAMES_ABI = [
 export function checkENSTransaction(tx,balance) {
   if(BigInt(tx.chainId)!==11155111n)throw new Error('ENS transactions must use Sepolia');
   const gas=BigInt(tx.gasLimit??0),price=BigInt(tx.maxFeePerGas??tx.gasPrice??0);
-  if(gas<=0n||price<=0n||gas>(tx.to?8_000_000n:16_000_000n))throw new Error('ENS transaction exceeds gas policy');
+  // Sepolia's state-creation gas is included in deployment estimates after Glamsterdam.
+  const gasCap=tx.to?8_000_000n:20_000_000n;
+  if(gas<=0n||price<=0n||gas>gasCap)throw new Error(`ENS transaction exceeds gas policy: estimated ${gas} gas, cap ${gasCap}; fee rate ${price} wei`);
   const maximum=gas*price;
   if(maximum>parseEther('0.005'))throw new Error('ENS transaction maximum fee exceeds 0.005 test ETH');
   if(BigInt(balance)<maximum+BigInt(tx.value??0))throw new Error('Owner needs more Sepolia ETH');

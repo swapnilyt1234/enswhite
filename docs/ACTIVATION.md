@@ -23,7 +23,9 @@ The private launcher loads this file. OpenAI Responses planning and copy/FAQ gen
 4. Once ready, the owner attaches the company subregistry pointer and retires the old controller's registrar role. Mainnet, vendor registry and Whitechain funds stay in place. The new registrar retains company signup support.
 5. Signed journals stay private under `data/ens/agent-discovery-v1`. If interrupted, keep the company stopped and resume **the same script and origin**. Do not delete journals or run the old bootstrap. The original runtime is preserved in the migration plan.
 
-Sepolia only: owner execution fees at most 0.005 test ETH per transaction; department transactions at most 0.0005 each; gas caps also apply. Department wallets need Sepolia ETH. The script prints public transaction links and writes sanitized manifests under `docs/deployments`.
+Sepolia only: owner fees at most 0.005 test ETH per transaction; department transactions at most 0.0005 each. Contract deployments permit at most 20 million total gas; other calls remain limited to 8 million. Department wallets need Sepolia ETH. The script prints public transaction links and writes sanitized manifests under `docs/deployments`.
+
+The live controller deployment was estimated at 18,459,191 gas and failed bounded simulation at 16 million. Sepolia's [Glamsterdam upgrade](https://blog.ethereum.org/2026/09/17/glamsterdam-testnet-announcement) changed state-creation gas accounting; [EIP-8037](https://eips.ethereum.org/EIPS/eip-8037) separately meters state gas beyond the execution cap. The local deployment allowance is calibrated to that observed total; maximum ETH fees, network checks and balance checks remain unchanged.
 
 The new controller permits founder edits only to discovery keys through `setAgentMetadata`; employee status and Finance budget scopes remain separate. Verification checks NFT ownership, agent wallet, current ENS ownership, ENS consent and registration metadata. Missing or mismatched identities show unverified. No MCP/A2A, reputation or validation claims are invented.
 

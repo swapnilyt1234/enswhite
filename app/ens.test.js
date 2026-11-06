@@ -31,11 +31,13 @@ test('founder management prepares only fixed Sepolia lifecycle calls for the con
  await assert.rejects(directory.transaction('hire','marketing',founder,{},1),/Term/);
 });
 
-test('ENS gas policy allows the observed 12.59M deployment estimate but caps network, calls and fees',()=>{
- const deploy={chainId:11155111,gasLimit:12585962n,maxFeePerGas:32n};
+test('ENS gas policy allows the observed 18.46M deployment but caps calls, network and total fees',()=>{
+ const deploy={chainId:11155111,gasLimit:18459191n,maxFeePerGas:32n};
  checkENSTransaction(deploy,1000000000000000n);
- assert.throws(()=>checkENSTransaction({...deploy,gasLimit:16000001n},1000000000000000000n),/gas policy/);
+ checkENSTransaction({...deploy,gasLimit:20000000n},1000000000000000n);
+ assert.throws(()=>checkENSTransaction({...deploy,gasLimit:20000001n},1000000000000000000n),/gas policy.*20000001.*20000000/);
  assert.throws(()=>checkENSTransaction({...deploy,to:'0x0000000000000000000000000000000000000001'},1000000000000000000n),/gas policy/);
+ assert.throws(()=>checkENSTransaction({...deploy,to:'0x0000000000000000000000000000000000000001',gasLimit:8000001n},1000000000000000000n),/gas policy/);
  assert.throws(()=>checkENSTransaction({...deploy,maxFeePerGas:1000000000n},1000000000000000000n),/maximum fee/);
  assert.throws(()=>checkENSTransaction(deploy,0n),/more Sepolia/);
  assert.throws(()=>checkENSTransaction({...deploy,chainId:1},1000000000000000000n),/Sepolia/);

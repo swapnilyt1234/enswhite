@@ -4,6 +4,7 @@ Write-Host 'Sepolia discovery migration: stop the company server first. No mainn
 Write-Host 'Prepare a replacement company registry/controller; keep employee names, wallets, spending policies and remaining terms; attach it only after all three identities are ready.'
 Write-Host 'Each department registers its own ERC-8004 identity and metadata. The founder publishes ENSIP-25 consent and ENSIP-26 context/web records. No MCP/A2A service is advertised.'
 Write-Host 'Existing public URI stays fixed. Owner transactions: at most 0.005 test ETH each; department transactions at most 0.0005 test ETH each. Department wallets need Sepolia ETH.'
+Write-Host 'Controller deployment: at most 20 million total gas, including state creation. Other transactions remain capped at 8 million gas. ETH fee caps are unchanged.'
 Write-Host 'Resume this same script after interruptions. Signed journals stay private under data/ens/agent-discovery-v1. Do not run other owner or department Sepolia signers concurrently.'
 forge build --root ens -q
 if($LASTEXITCODE -ne 0){throw 'ENS discovery contracts did not build'}
