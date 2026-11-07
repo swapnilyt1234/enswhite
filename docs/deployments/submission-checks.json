@@ -1,0 +1,92 @@
+{
+  "ens": {
+    "checkedAt": "2026-11-07T02:29:05.478Z",
+    "chainId": 11155111,
+    "company": "cedar-studio-1107.enswhite.eth",
+    "registry": "0x460e77c48b03DAf68c6a1b03b1943680f286D205",
+    "employee": "marketing.cedar-studio-1107.enswhite.eth",
+    "agentId": "11309",
+    "wallet": "0x14F7F2b553E1064F28a93B06F6f2d45902D92959",
+    "ensip25ConsentVerified": true,
+    "agentContextPresent": true
+  },
+  "checkedAt": "2026-11-07T02:29:05.486Z",
+  "chainId": 1874,
+  "token": "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",
+  "company": "0xDD9E8EdD5488B9DfBb3AE6f98FdA10b3E7d3EbAd",
+  "payments": [
+    {
+      "vendor": "copydesk",
+      "hash": "0x8fa7bca9f5ea4155954d6db4f2e68d4438ebaafc34e35282bf47b12962a57a4c",
+      "block": 12406226,
+      "grossUnits": "100000",
+      "feeUnits": "1000",
+      "payer": "0x14F7F2b553E1064F28a93B06F6f2d45902D92959",
+      "gasPayer": "0x1ca37D776D666B863fCCA584c3b6A4E1b10EcA18",
+      "tokenTransferVerified": true
+    },
+    {
+      "vendor": "pixelpress",
+      "hash": "0x4ae3dfae29629dd56252529ba3dcdba88a40659f38d47a7a644bd355a7bdaf41",
+      "block": 12406627,
+      "grossUnits": "200000",
+      "feeUnits": "2000",
+      "payer": "0x14F7F2b553E1064F28a93B06F6f2d45902D92959",
+      "gasPayer": "0x1ca37D776D666B863fCCA584c3b6A4E1b10EcA18",
+      "tokenTransferVerified": true
+    },
+    {
+      "vendor": "lingualink",
+      "hash": "0xa894b8f06c823df97529aa340bdb433b94bd9bd42a0c72a3c797a67eb260b2b5",
+      "block": 12407121,
+      "grossUnits": "100000",
+      "feeUnits": "1000",
+      "payer": "0x1c0C7D7F9adCff272D924ca7816159f67042e55A",
+      "gasPayer": "0x1ca37D776D666B863fCCA584c3b6A4E1b10EcA18",
+      "tokenTransferVerified": true
+    }
+  ],
+  "departments": [
+    {
+      "department": "finance",
+      "address": "0xF552006E56226E1258DAa207B50633C924A4d700",
+      "wbt": "0"
+    },
+    {
+      "department": "marketing",
+      "address": "0x14F7F2b553E1064F28a93B06F6f2d45902D92959",
+      "wbt": "0"
+    },
+    {
+      "department": "support",
+      "address": "0x1c0C7D7F9adCff272D924ca7816159f67042e55A",
+      "wbt": "0"
+    }
+  ],
+  "contracts": [
+    {
+      "address": "0xbca635f00C07681f10269f69ca293bDB6536D6aB",
+      "verified": true,
+      "name": "EnsWhiteCompany",
+      "compiler": "v0.8.28+commit.7893614a"
+    },
+    {
+      "address": "0xDD9E8EdD5488B9DfBb3AE6f98FdA10b3E7d3EbAd",
+      "verified": true,
+      "name": "EnsWhiteCompany",
+      "compiler": "v0.8.28+commit.7893614a"
+    },
+    {
+      "address": "0x005d2a5A578fE3A048F6B69Df6146F42E29E8dEa",
+      "verified": true,
+      "name": "EnsWhiteCompany",
+      "compiler": "v0.8.28+commit.7893614a"
+    },
+    {
+      "address": "0x25643a29809999B5134B0aaB4f0Ac717b3100A12",
+      "verified": true,
+      "name": "EnsWhiteCompany",
+      "compiler": "v0.8.28+commit.7893614a"
+    }
+  ]
+}

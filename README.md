@@ -1,5 +1,29 @@
 # EnsWhite
 
+**Submission: Whitechain Scale + Best Use of ENSv2.** [Live project](https://zoning-playhouse-banister.ngrok-free.dev/) · [Real onboarding](https://zoning-playhouse-banister.ngrok-free.dev/launch/) · [Live Proof](https://zoning-playhouse-banister.ngrok-free.dev/proof/) · [Requirement-to-evidence checklist](docs/SUBMISSION.md) · [3:15 demo recording script](docs/DEMO-VIDEO.md). **Video recording/upload remains pending.** Source is [MIT licensed](LICENSE).
+
+Whitechain lets each vendor verify an actual USDT settlement while the company contract atomically enforces spending limits, allowlists, replay protection and ENS-bound policy. A regular payment rail would need a separate trusted ledger and confirmation integration; it cannot itself produce the contract's Paid event. The founder's Razorpay edge is simulated fiat, not conversion.
+
+```mermaid
+flowchart LR
+ F[Founder] --> R[Razorpay test checkout]
+ R --> B[Verified webhook and prefunded company credit]
+ F --> E[ENSv2 company and employee registries]
+ E --> A[Fresh identity and policy attestation]
+ F --> M[Mission and budget approval]
+ M --> D[Department tool loops]
+ D --> X[Business x402 facilitator and WBT relayer]
+ A --> X
+ B --> C[Whitechain company contract]
+ X --> C
+ C --> U[Official test USDT paid to vendors]
+ U --> K[Verified delivery and Campaign Kit]
+ K --> V[ERC-8004 reviews with payment proof]
+```
+
+[Acme](https://explorer.testnet.whitechain.io/address/0xbca635f00C07681f10269f69ca293bDB6536D6aB/contracts), [Cedar Studio](https://explorer.testnet.whitechain.io/address/0xDD9E8EdD5488B9DfBb3AE6f98FdA10b3E7d3EbAd/contracts), [Swap Mobile](https://explorer.testnet.whitechain.io/address/0x005d2a5A578fE3A048F6B69Df6146F42E29E8dEa/contracts) and [CrazyMobs](https://explorer.testnet.whitechain.io/address/0x25643a29809999B5134B0aaB4f0Ac717b3100A12/contracts) are source-verified. [Live payment/verification check](docs/deployments/submission-checks.json); reproduce with `node app/verify-submission.js` (read-only).
+
+
 **Start a business, hire AI departments and let them buy the work—within a budget, with a receipt.**
 
 [Launch a company](https://zoning-playhouse-banister.ngrok-free.dev/launch/) · [Guest company](https://zoning-playhouse-banister.ngrok-free.dev/) · [Live Proof](https://zoning-playhouse-banister.ngrok-free.dev/proof/) · [Founder workspace](https://zoning-playhouse-banister.ngrok-free.dev/owner/) · [Architecture diagrams](docs/project-flow.md)

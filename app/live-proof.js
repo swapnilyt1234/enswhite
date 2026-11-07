@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
-import { Contract, FetchRequest, JsonRpcProvider } from 'ethers';
+import { Contract } from 'ethers';
+import {createTestnetProvider} from './testnet-provider.js';
 import { createENSDirectory, WHITECHAIN_COIN_TYPE } from './ens.js';
 import { IDENTITY_ABI, readCompanyEvents } from './company-chain.js';
 import { TOKEN } from './chain.js';
@@ -8,8 +9,8 @@ import { VENDORS } from './company-store.js';
 // This module accepts public deployment information only; it never opens a wallet store.
 export function createLiveProof() {
   const manifest=JSON.parse(readFileSync(new URL('../docs/deployments/enswhite-testnets.json',import.meta.url),'utf8'));
-  const ens=createENSDirectory(manifest.ens), request=new FetchRequest('https://rpc.testnet.whitechain.io');request.timeout=10000;
-  const provider=new JsonRpcProvider(request,1874,{cacheTimeout:0});
+  const ens=createENSDirectory(manifest.ens);
+  const provider=createTestnetProvider('https://rpc.testnet.whitechain.io',1874);
   const company=new Contract(manifest.whitechain.company,IDENTITY_ABI,provider);
   const token=new Contract(TOKEN,['function balanceOf(address) view returns(uint256)'],provider);
   let cache,pending,lastAttempt=0;
