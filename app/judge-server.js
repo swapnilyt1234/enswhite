@@ -61,7 +61,7 @@ export function createJudgeApp({origin,owner=false,proof=createLiveProof(),works
   return {app,async close(){clearInterval(timer);await Promise.all([...sessions.values()].map(dispose));proof.close()}};
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){
-  const origin=(process.env.APP_ORIGIN||'http://localhost:3006').trim(),judge=createJudgeApp({origin,owner:process.env.OWNER_PROXY==='true'});
-  const server=judge.app.listen(3006,process.env.PUBLIC_BIND||'127.0.0.1',()=>console.log(`Public demo: ${origin}/guest/ · Live Proof: ${origin}/proof/\nForward the public HTTPS tunnel to port 3006. Founder access: ${origin}/owner/`));
+  const port=Number(process.env.PORT||3006),origin=(process.env.APP_ORIGIN||(process.env.RAILWAY_PUBLIC_DOMAIN?'https://'+process.env.RAILWAY_PUBLIC_DOMAIN:`http://localhost:${port}`)).trim(),judge=createJudgeApp({origin,owner:process.env.OWNER_PROXY==='true'});
+  const server=judge.app.listen(port,process.env.PUBLIC_BIND||'127.0.0.1',()=>console.log(`Public demo: ${origin}/guest/ · Live Proof: ${origin}/proof/\nForward the public HTTPS tunnel to port 3006. Founder access: ${origin}/owner/`));
   for(const signal of ['SIGINT','SIGTERM'])process.once(signal,()=>{server.close();void judge.close().finally(()=>server.closeAllConnections())});
 }

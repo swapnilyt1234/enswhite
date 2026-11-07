@@ -2,11 +2,13 @@ import express from 'express';
 
 export function baseApp(origin) {
   const app = express(); app.disable('x-powered-by');
+  app.get('/healthz',(req,res)=>res.json({status:'ok'}));
   const expected = new URL(origin);
   if (!['http:', 'https:'].includes(expected.protocol) || expected.pathname !== '/' || expected.search || expected.hash || expected.username || expected.password) throw new Error('APP_ORIGIN must be an HTTP(S) origin without a path');
   app.use((req, res, next) => {
     res.set({ 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer', 'X-Frame-Options': 'DENY',
       'Content-Security-Policy': "default-src 'self'; script-src 'self' https://checkout.razorpay.com; frame-src https://*.razorpay.com; connect-src 'self' https://*.razorpay.com; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'" });
+    if(req.method==='GET'&&process.env.RAILWAY_PUBLIC_DOMAIN&&req.get('host')===process.env.RAILWAY_PUBLIC_DOMAIN&&expected.host!==process.env.RAILWAY_PUBLIC_DOMAIN)return res.redirect(307,origin+req.originalUrl);
     if (req.get('host') !== expected.host) return res.status(403).json({ error: 'Unrecognized host' });
     if (req.get('sec-fetch-site') === 'cross-site' && req.path !== '/api/webhooks/razorpay') return res.status(403).json({ error: 'Cross-site request blocked' });
     next();
