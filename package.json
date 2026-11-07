@@ -13,10 +13,15 @@
     "test": "node --test app/*.test.js",
     "check:chain": "node --env-file-if-exists=.env app/check-chain.js",
     "ens:check": "node --env-file-if-exists=.env.ens ens/scripts/bootstrap.js check",
-    "ens:test": "forge test --root ens -vv"
+    "ens:test": "forge test --root ens -vv",
+    "build:landing": "tailwindcss -i app/styles/landing.css -o app/judge-public/landing.css --minify"
   },
   "dependencies": {
     "ethers": "^6.17.0",
     "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.5",
+    "tailwindcss": "^4.3.5"
   }
 }

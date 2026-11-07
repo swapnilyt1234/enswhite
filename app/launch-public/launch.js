@@ -34,6 +34,8 @@ $('business').onsubmit=event=>{event.preventDefault();act(async()=>{await api('s
 $('roles').onsubmit=event=>{event.preventDefault();if(!$('roles').querySelector('input[name="role"]:checked'))return;act(()=>api('hire',{roles:[...new FormData(event.target).getAll('role'),'finance']}))};
 $('roles').addEventListener('change',controls);
 const label=$('business').elements.label;$('business').elements.name.oninput=event=>{if(!label.dataset.edited)label.value=event.target.value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40)};label.oninput=()=>{label.dataset.edited='true'};
+const suggestedTeam=new URLSearchParams(location.search).get('team');
+if(['marketing','support','full'].includes(suggestedTeam))for(const input of $('roles').querySelectorAll('input[name=role]'))input.checked=suggestedTeam==='full'||input.value===suggestedTeam;
 void refresh().catch(error=>{$('status').textContent=launchError(error)});setInterval(()=>{if(!busy&&!document.hidden)void refresh().catch(()=>{$('status').textContent='Reconnecting. Your progress is saved.'})},3000);
 $('new-company').onclick=()=>act(async()=>{await api('new',{});$('business').reset();delete label.dataset.edited;});
 $('company-select').onchange=event=>{const id=event.target.value;act(async()=>{await api(id?'select':'new',id?{id}:{});if(!id){$('business').reset();delete label.dataset.edited;}})};

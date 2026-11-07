@@ -50,4 +50,6 @@ This uses ENSv2 UserRegistries, expiring non-transferable employee badges and pe
 
 Node 22.13+, `npm ci`, `npm test`. For a disposable public demo: `node app/judge-server.js`, then open `http://localhost:3006`. It starts simulated vendors inside each guest's isolated workspace. Sessions expire after one hour, permit five missions and never use the host's paid model key. Live Proof needs RPC connectivity, no signer.
 
+The public landing page uses the Stipple / Pointillism design tokens, inline SVG icons and a light/dark theme. Edit `app/styles/landing.css` and run `npm run build:landing` to regenerate its committed Tailwind v4 stylesheet. Production serves the built file without Tailwind or a CDN at runtime. The three pricing cards show demo task costs; testimonial-style scenarios are explicitly illustrative.
+
 [Activation and local model setup](docs/ACTIVATION.md) · [Full operator runbook](docs/RUNBOOK.md) · [Deployment/proof manifest](docs/deployments/enswhite-testnets.json) · [Diagrams with speaker notes](docs/project-flow.md)
