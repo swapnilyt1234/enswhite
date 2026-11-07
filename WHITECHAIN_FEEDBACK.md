@@ -1,24 +1,7 @@
 # Whitechain integration feedback
 
-EnsWhite is a Scale demo: a founder funds a business through Razorpay test mode; Marketing and Support buy independent vendor services using test USDT on Whitechain Sepolia; the company relayer pays WBT gas. Fiat is explicitly simulated, using a fixed demo allocation rather than fiat conversion.
+**What worked.** Whitechain Sepolia was a good fit for running the payment side of an agent-operated business. In EnsWhite, founders approve budgets, agents pay independent vendors in test USDT, and the business relayer pays WBT gas. Our verified contract enforces spending limits and records a payment that the vendor can check before delivering work. Foundry and Blockscout made deployment and verification familiar. Razorpay test mode simulated the founder’s top-up against a prefunded test USDT pool. [Verified company contract](https://explorer.testnet.whitechain.io/address/0xDD9E8EdD5488B9DfBb3AE6f98FdA10b3E7d3EbAd/contracts) · [Example vendor payment](https://explorer.testnet.whitechain.io/tx/0x8fa7bca9f5ea4155954d6db4f2e68d4438ebaafc34e35282bf47b12962a57a4c)
 
-## What worked
+**Where we got stuck.** We built and ran our own facilitator and relayer. We defined a custom `enswhite-receive` payload using x402 v2’s `PAYMENT-REQUIRED` and `PAYMENT-RESPONSE` headers. An agent signs an EIP-3009 authorization to the company contract, which checks policy and pays the vendor. The vendor verifies the confirmed transaction before delivering. Generic `exact` clients would need an adapter for this scheme. We also had to handle RPC timeouts and distinguish insufficient WBT for gas from insufficient test USDT backing a checkout.
 
-- EVM tooling let us deploy and verify the identity-enforcing [EnsWhiteCompany](https://explorer.testnet.whitechain.io/address/0xbca635f00C07681f10269f69ca293bDB6536D6aB/contracts) using Foundry and Blockscout.
-- EIP-3009 authorizations support department wallets signing without WBT. A separate relayer submits transactions; the contract enforces limits and records receipts.
-- Separate vendor processes independently check their own Paid event before delivering. [CopyDesk payment proof](https://explorer.testnet.whitechain.io/tx/0x7123f986638ac983243ba7c024a7cdd3acc0396ce0a8c2aa1b315de397e41cd0).
-- Sponsor guidance to simulate fiat and keep the Scale story centered on founder funding, agent purchases and receipts unblocked the demo.
-
-## Friction encountered
-
-- Startup and read-only checks encountered transport timeouts. We added bounded retries for transport failures and sequential vendor startup. Configuration/contract failures still fail explicitly. A documented production RPC/failover example would help builders distinguish connectivity failures from contract failures.
-- We operated our own facilitator and gas relayer. Our HTTP 402 integration needs chain ID 1874 and the custom `enswhite-receive` scheme: authorization goes to our company contract, which pays the vendor. We do not claim standard exact-client compatibility. A worked custom-network integration would reduce guesswork.
-- We inspected the token implementation/ABI to establish the test USDT domain and authorization methods used by the app. An explicit example covering token decimals, EIP-712 domain, supported authorization variants and relayer submission would be useful.
-- Test-USDT inventory is separate from WBT gas. Captured sandbox payments initially waited because the company contract had no unreserved test USDT. We added a pool-shortage guard and resumed existing orders after funding, avoiding duplicate checkout/credit.
-- Gas replenishment depends on earned fees and executable YetiTrade liquidity/quotes. Small fee pools can be uneconomic, so the watcher leaves them untouched and caps slippage, approval amount and spend per cycle. We did not force a live swap just to create a success screenshot.
-
-## Trust and demo disclosures
-
-ENS lives on Ethereum Sepolia. Whitechain verifies a request-bound attester signature, not a light-client proof of ENS state. Already-signed policy has a maximum 60-second authorization window. The business covers gas; daily transaction, vendor, per-call, daily-spend and founder-approval controls constrain automated signing. No real-value funds are represented by the sandbox fiat flow.
-
-The separate Sepolia controller-deployment gas calibration concerned Ethereum's testnet and is not reported as a Whitechain issue. This file records implementation experience; submission eligibility and final sponsor review have not been independently confirmed here.
+**What we’d like Whitechain to build.** Start with a maintained agent-payment example on chain 1874 that takes a vendor request from HTTP 402 through authorization, settlement, receipt verification, and retry. Document the official USDT contract’s EIP-712 domain and supported authorization methods, how to fund the test USDT pool separately from WBT gas, and how to recover from RPC failures without paying twice. Then offer a reference facilitator and a hosted relayer option with per-agent limits and gas monitoring. Whitechain already gives businesses a place to settle and enforce payments. That infrastructure would let more teams bring their agent workflows to Whitechain without first rebuilding the payment plumbing.
