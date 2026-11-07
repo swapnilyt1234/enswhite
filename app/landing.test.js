@@ -33,7 +33,7 @@ test('pricing suggestions only preselect valid working roles and never submit a 
 function luminance(hex){const channels=hex.slice(1).match(/../g).map(x=>parseInt(x,16)/255).map(x=>x<=.04045?x/12.92:((x+.055)/1.055)**2.4);return channels[0]*.2126+channels[1]*.7152+channels[2]*.0722}
 function contrast(a,b){const x=luminance(a),y=luminance(b);return(Math.max(x,y)+.05)/(Math.min(x,y)+.05)}
 test('light and dark text palettes meet WCAG AA contrast on each reading surface',()=>{
- const css=read('./styles/landing.css'),blocks=[css.match(/@theme static\s*\{([^}]+)/)[1],css.match(/:root\[data-theme=dark\]\s*\{([^}]+)/)[1]];
+ const css=read('./styles/landing.css'),tokensCSS=read('./styles/tokens.css'),blocks=[tokensCSS.match(/@theme static\s*\{([^}]+)/)[1],tokensCSS.match(/:root\[data-theme=dark\]\s*\{([^}]+)/)[1]];
  for(const block of blocks){const tokens=Object.fromEntries([...block.matchAll(/--color-([\w-]+):\s*(#[0-9a-f]{6})/g)].map(x=>[x[1],x[2]]));for(const surface of ['bg','surface','surface-strong'])for(const ink of ['text','text-muted','accent'])assert(contrast(tokens[ink],tokens[surface])>=4.5,`${ink} on ${surface}`);assert(contrast(tokens.bg,tokens.primary)>=4.5)}
  assert.match(css,/prefers-reduced-motion/);assert.match(css,/:focus-visible/);assert.match(css,/max-width:520px/);
 });

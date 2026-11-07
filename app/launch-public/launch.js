@@ -1,3 +1,4 @@
+import {setupProgress} from './setup-progress.js';
 const $=id=>document.getElementById(id),esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let busy=false,currentJob=null,refreshPending,revision=0;
 function launchError(error){if(/Daily operator/i.test(error.message))return 'The demo has reached its daily company limit. Please try tomorrow.';return /code=|TIMEOUT|ECONN|keystore|gas policy|nonce|RPC|file:\/\//i.test(error.message)?'Setup is temporarily paused. Your progress is saved.':error.message||'Unable to complete this request. Your progress is saved.'}
@@ -8,7 +9,20 @@ function controls(){
  $('business').querySelector('button').disabled=busy;
  $('roles').querySelector('button').disabled=busy||!$('roles').querySelector('input[name="role"]:checked');
 }
-function stepLabel(step){const names={copydesk:'CopyDesk',pixelpress:'PixelPress',lingualink:'LinguaLink',marketing:'Marketing',support:'Support',finance:'Finance'};return step.split('-').map(word=>names[word]||word).join(' ').replace(/^./,c=>c.toUpperCase())}
+function stepLabel(step){
+ const fixed={'launch-company':'Register company name','fund-reviewer':'Prepare review account','whitechain-company':'Create payment account','whitechain-finance':'Connect Finance','relayer-gas':'Prepare transaction fees','test-pool':'Prepare test funding'};
+ if(fixed[step])return fixed[step];
+ const [action,...parts]=step.split('-'),label=parts.join('-'),names={copydesk:'CopyDesk',pixelpress:'PixelPress',lingualink:'LinguaLink',marketing:'Marketing',support:'Support',finance:'Finance'},name=names[label]||label;
+ return({fund:`Prepare ${name} wallet`,hire:`Hire ${name}`,identity:`Register ${name} identity`,metadata:`Publish ${name} profile`,ensip25:`Link ${name} identity`,ensip26:`Set ${name} role context`,web:`Connect ${name} profile`,limits:`Set ${name} spending limits`,vendor:`Connect ${name} service`})[action]||step.replaceAll('-',' ');
+}
+function renderSetupProgress(job){
+ const progress=setupProgress(job);$('setup-progress').value=progress.percent;$('progress-percent').textContent=progress.percent+'%';
+ $('progress-title').textContent=progress.complete?'Your company is ready':progress.paused?'Setup paused — progress saved':'Your company is taking shape';
+ const detail=progress.complete?'Ready to fund and work.':progress.next?'Next: '+stepLabel(progress.next)+'.':'Checking employee identities and final configuration.';
+ const summary=`${progress.count} of ${progress.total} transactions confirmed. ${progress.paused?'Saved work will resume when the service recovers.':detail}`;
+ if($('progress-summary').textContent!==summary)$('progress-summary').textContent=summary;
+ document.querySelectorAll('.setup-phases li').forEach((step,index)=>{step.dataset.complete=String(index<progress.phase);if(index===progress.phase)step.setAttribute('aria-current','step');else step.removeAttribute('aria-current')});
+}
 function refresh(){return refreshPending??=(async()=>{
  const version=revision,{job,companies=[],operatorReady}=await api('state');if(version!==revision)return;
  currentJob=job;$('company-switcher').hidden=!companies.length;
@@ -18,6 +32,7 @@ function refresh(){return refreshPending??=(async()=>{
  $('launch-heading').textContent=!job?'What’s your business?':!job.roles?'Choose your team.':job.state==='ready'?'Your company is ready.':'Building your company.';
  $('launch-intro').hidden=!!job;
  if(job){
+  renderSetupProgress(job);
   $('company-name').textContent=job.companyName;
   $('operator').textContent=job.state==='ready'?'Add a budget, give your team a mission and review the work they deliver.':operatorReady?'We’re setting up your company and employee identities. You can follow each transaction below.':'Your setup request is saved. It will continue when the launch service reconnects.';
   const checklist=job.steps.map(s=>`<li>${esc(stepLabel(s.step))} · ${esc(s.state)} <a target="_blank" rel="noreferrer" href="${s.chain===11155111?'https://sepolia.etherscan.io':'https://explorer.testnet.whitechain.io'}/tx/${esc(s.hash)}">View transaction ↗</a></li>`).join('');

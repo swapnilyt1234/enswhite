@@ -14,7 +14,9 @@
     "check:chain": "node --env-file-if-exists=.env app/check-chain.js",
     "ens:check": "node --env-file-if-exists=.env.ens ens/scripts/bootstrap.js check",
     "ens:test": "forge test --root ens -vv",
-    "build:landing": "tailwindcss -i app/styles/landing.css -o app/judge-public/landing.css --minify"
+    "build:landing": "tailwindcss -i app/styles/landing.css -o app/judge-public/landing.css --minify",
+    "build:theme": "tailwindcss -i app/styles/app-theme.css -o app/judge-public/app-theme.css --minify && node app/sync-theme.js",
+    "build:ui": "npm run build:landing && npm run build:theme"
   },
   "dependencies": {
     "ethers": "^6.17.0",

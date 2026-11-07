@@ -23,6 +23,7 @@ test('public guests have isolated simulated funds, no paid model, scoped cookies
  assert.equal((await fetch(origin+'/api/state')).status,404);
  assert.equal((await call('/proof/api')).body.mode,'testnet');
  assert.equal((await fetch(origin+'/guest/company-ui.js',{headers:{cookie:a}})).status,200);
+ for(const asset of ['app-theme.css','app-theme.js'])assert.equal((await fetch(origin+'/guest/'+asset,{headers:{cookie:a}})).status,200);
 });
 
 test('Live Proof failure is explicit and never falls back to fabricated live data',async t=>{

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {setupProgress} from './launch-public/setup-progress.js';
 const source=readFileSync(new URL('./company-public/company-ui.js',import.meta.url),'utf8');
 const apiSource=source.slice(source.indexOf('async function api('),source.indexOf('function go('));
 function client(fetch){const notices=[];const context=vm.createContext({fetch,TypeError,Error,routePrefix:'/company',status:message=>notices.push(message),setTimeout:fn=>fn(),$:()=>({hidden:true})});vm.runInContext(apiSource,context);return{api:context.api,notices}}
@@ -43,9 +44,9 @@ test('work timeline deduplicates repeated waiting updates and keeps technical tr
 
 test('launch polling coalesces reads and a stale response cannot replace a newly selected company',async()=>{
  const launch=readFileSync(new URL('./launch-public/launch.js',import.meta.url),'utf8'),button={disabled:false};
- const nodes=Object.fromEntries(['company-select','new-company','business','roles','company-switcher','progress','hire','launch-heading','launch-intro','company-name','operator','checklist','setup-error','open-company','status'].map(id=>[id,{innerHTML:'',querySelector:selector=>selector==='button'?button:{checked:true}}]));
+ const nodes=Object.fromEntries(['company-select','new-company','business','roles','company-switcher','progress','hire','launch-heading','launch-intro','company-name','operator','checklist','setup-error','open-company','status','setup-progress','progress-percent','progress-title','progress-summary'].map(id=>[id,{innerHTML:'',querySelector:selector=>selector==='button'?button:{checked:true}}]));
  let release,reads=0;const old=new Promise(r=>{release=r}),job=label=>({companyName:label,state:'ready',roles:['finance','marketing'],steps:[]});
- const context=vm.createContext({busy:false,currentJob:null,refreshPending:null,revision:0,$:id=>nodes[id],esc:String,document:{activeElement:null},api:async path=>{if(path==='new')return{};reads++;return reads===1?old:{job:job('New company'),operatorReady:true}},launchError:e=>e.message});
+ const context=vm.createContext({busy:false,currentJob:null,refreshPending:null,revision:0,setupProgress,$:id=>nodes[id],esc:String,document:{activeElement:null,querySelectorAll:()=>[]},api:async path=>{if(path==='new')return{};reads++;return reads===1?old:{job:job('New company'),operatorReady:true}},launchError:e=>e.message});
  vm.runInContext(launch.slice(launch.indexOf('function controls()'),launch.indexOf("$('business').onsubmit")),context);
  const first=context.refresh();assert.equal(context.refresh(),first);const change=context.act(()=>context.api('new'));release({job:job('Old company'),operatorReady:true});await change;
  assert.equal(reads,2);assert.equal(nodes['company-name'].textContent,'New company');assert.equal(nodes['company-select'].disabled,false);
