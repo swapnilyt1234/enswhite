@@ -84,14 +84,16 @@ function renderPanel(id,revision,html){
  panel.innerHTML=html;panel.dataset.revision=revision;
  for(const form of panel.querySelectorAll('form'))for(const [name,value]of drafts.get(key(form))||[]){const input=form.elements.namedItem(name);if(input)input.value=value}
 }
+let lastPaymentStatus;
 function renderPaymentStatus(data){
+ lastPaymentStatus=data;
  if(!state&&data.businessName){document.querySelector('.workspace-switch strong').textContent=data.businessName;document.querySelector('.breadcrumb').firstChild.textContent=data.businessName+' ';}
  const payment=data.payments?.[0],confirmed=payment?.state==='confirmed',pending=payment&&['queued','submitted'].includes(payment.state);
  paymentPanel.hidden=!confirmed&&!pending;
  if(!confirmed&&!pending)return;
  const receipt=confirmed&&data.explorer&&/^0x[0-9a-f]{64}$/i.test(payment.hash||'')?`<a target="_blank" rel="noreferrer" href="${esc(data.explorer)}/tx/${payment.hash}">View payment receipt ↗</a>`:'';
  const text=confirmed?`${money(payment.units)} credited to your company.`:'Your verified test payment is awaiting settlement. You do not need to pay again.';
- const note=confirmed&&(!state||refreshError)?'Payment confirmation is saved. The account display is reconnecting.':'';
+ const note=confirmed&&refreshError?'Payment confirmation is saved. Live account details are reconnecting.':'';
  renderPanel('payment-status',JSON.stringify({payment,note}),`<p><strong>${esc(text)}</strong></p>${note?`<p class="micro">${esc(note)}</p>`:''}${receipt}`);
  if(confirmed){
   const key='enswhiteCheckout:'+data.company;if(sessionStorage.getItem(key)===payment.orderId)sessionStorage.removeItem(key);
@@ -217,7 +219,6 @@ async function refreshState() {
     if(branding?.avatar){avatar.replaceChildren(Object.assign(document.createElement('img'),{src:branding.avatar,alt:branding.name+' company avatar'}))}else{avatar.textContent=(state.business?.name||branding.name).slice(0,1)}
   }
   $('ens-writes').innerHTML=(state.ens?.writes||[]).slice(0,6).map(row=>`<p class="micro">${esc(row.label)} · ${esc(row.key)} → ${esc(row.value)} · ${esc(row.state)} ${row.hash?`<a target="_blank" rel="noreferrer" href="https://sepolia.etherscan.io/tx/${esc(row.hash)}">View ENS edit ↗</a>`:''}${row.error?'<br>'+esc(row.error):''}</p>`).join('');
-  document.querySelector('[data-view=team] .nav-count').textContent=state.team.length;
   document.querySelector('#view-team .section-header h2 span').textContent=String(state.team.length).padStart(2,'0');
   $('cash').textContent=money(state.companyBalance);
   $('team-balance').textContent=money(state.team.reduce((sum,d)=>sum+BigInt(d.balance),0n));
@@ -234,7 +235,7 @@ async function refreshState() {
   $('allocate').disabled=busy||BigInt(state.companyBalance)===0n;
   $('run-mission').disabled=busy||!state.team.some(d=>BigInt(d.balance)>0n&&(!state.ens?.enabled||d.identity));
   renderTeam();renderActivity();renderTasks();renderWorkforce();
-  businessForm.querySelector('button').disabled=busy;syncControls();
+  businessForm.querySelector('button').disabled=busy;syncControls();if(lastPaymentStatus)renderPaymentStatus(lastPaymentStatus);
   // Books and Marketplace UI are deferred; their renderers and backend remain available.
   $('chain-details').textContent=`${state.scheme} · x402 v2 custom scheme · receiveWithAuthorization · ${state.network} · 1% fee`;
   $('company-address').textContent=state.company;$('relayer-address').textContent=state.relayer;
@@ -299,7 +300,7 @@ $('topup').addEventListener('click',()=>act(async()=>{
   await checkout();await new Promise(resolve=>{const widget=new window.Razorpay({key:order.keyId,order_id:order.id,amount:order.amount,currency:order.currency,name:'EnsWhite · Test mode',description:'₹500 sandbox top-up → company budget',handler(){pendingTopup=order.id;sessionStorage.setItem('enswhiteCheckout:'+state.company,order.id);status('Test payment received. Your company balance will update automatically.');resolve()},modal:{ondismiss:resolve},theme:{color:'#195740'}});widget.on('payment.failed',()=>{status('Test payment failed. Retry in checkout or close it; no credit has been issued.',true)});widget.open()});
 }));
 $('login-form').addEventListener('submit',async event=>{event.preventDefault();try{await api('/login',{method:'POST',body:JSON.stringify({password:$('password').value})});$('password').value='';await refresh()}catch(error){$('login-error').textContent=founderError(error)}});
-for(const id of ['run-mission','propose-finance','allocate','fund-topup','topup'])$(id).disabled=true;status('Loading your workspace…');go(location.hash.slice(1));void refreshPaymentStatus().catch(()=>{});void refreshAttention().catch(()=>{});refresh().catch(refreshFailed);
+for(const id of ['run-mission','propose-finance','allocate','fund-topup','topup'])$(id).disabled=true;status('Opening your company…');go(location.hash.slice(1));void refreshPaymentStatus().catch(()=>{});void refreshAttention().catch(()=>{});refresh().catch(refreshFailed);
 setInterval(()=>{if(!document.hidden){void refreshPaymentStatus().catch(()=>{});void refreshAttention().catch(()=>{})}},5000);
 setInterval(()=>{if(!busy&&!document.hidden)refresh().catch(refreshFailed)},6000);
 document.addEventListener('submit',event=>{
