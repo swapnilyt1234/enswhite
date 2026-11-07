@@ -1,6 +1,6 @@
 # EnsWhite
 
-**Submission: Whitechain Scale + Best Use of ENSv2.** [Live project](https://zoning-playhouse-banister.ngrok-free.dev/) · [Real onboarding](https://zoning-playhouse-banister.ngrok-free.dev/launch/) · [Live Proof](https://zoning-playhouse-banister.ngrok-free.dev/proof/) · [Requirement-to-evidence checklist](docs/SUBMISSION.md) · [3:15 demo recording script](docs/DEMO-VIDEO.md). **Video recording/upload remains pending.** Source is [MIT licensed](LICENSE).
+**Submission: Whitechain Scale + Best Use of ENSv2.** [Hosted guest demo](https://enswhite.onrender.com/) · [Live Proof](https://enswhite.onrender.com/proof/) · [Operator-hosted real onboarding](https://zoning-playhouse-banister.ngrok-free.dev/launch/) · [Requirement-to-evidence checklist](docs/SUBMISSION.md) · [3:15 demo recording script](docs/DEMO-VIDEO.md). **Video recording/upload remains pending.** Source is [MIT licensed](LICENSE).
 
 Whitechain lets each vendor verify an actual USDT settlement while the company contract atomically enforces spending limits, allowlists, replay protection and ENS-bound policy. A regular payment rail would need a separate trusted ledger and confirmation integration; it cannot itself produce the contract's Paid event. The founder's Razorpay edge is simulated fiat, not conversion.
 
@@ -26,7 +26,7 @@ flowchart LR
 
 **Start a business, hire AI departments and let them buy the work—within a budget, with a receipt.**
 
-[Launch a company](https://zoning-playhouse-banister.ngrok-free.dev/launch/) · [Guest company](https://zoning-playhouse-banister.ngrok-free.dev/) · [Live Proof](https://zoning-playhouse-banister.ngrok-free.dev/proof/) · [Founder workspace](https://zoning-playhouse-banister.ngrok-free.dev/owner/) · [Architecture diagrams](docs/project-flow.md)
+[Launch a company](https://zoning-playhouse-banister.ngrok-free.dev/launch/) · [Guest company](https://enswhite.onrender.com/) · [Live Proof](https://enswhite.onrender.com/proof/) · [Founder workspace](https://zoning-playhouse-banister.ngrok-free.dev/owner/) · [Architecture diagrams](docs/project-flow.md)
 
 Public routes require `start-judge.ps1` running and the tunnel forwarded to **3006**. Private company/vendor services remain on **3004 / 4001–4003**. See [activation](docs/ACTIVATION.md) and the [six-step journey/operator guide](docs/FOUNDER-JOURNEY.md). The temporary tunnel depends on the operator's machine staying online. Demo recording remains deferred.
 
@@ -36,7 +36,7 @@ The front follows Launch → Hire → Fund → Work → Deliver → Review. New 
 
 Hire, Fire and Renew now queue through the authenticated app, with a separate private employee manager sponsoring ENS service gas. The founder needs no browser wallet for these actions. See [employee-manager setup and trust boundary](docs/EMPLOYEE-MANAGEMENT.md); the operator must start the manager and reload the company server to activate it.
 
-[Employee runtime, sample tool trace and local commands](docs/EMPLOYEE-RUNTIME.md) · [Completed offline Kit](https://zoning-playhouse-banister.ngrok-free.dev/sample-kit.html) · [Whitechain feedback](WHITECHAIN_FEEDBACK.md)
+[Employee runtime, sample tool trace and local commands](docs/EMPLOYEE-RUNTIME.md) · [Completed offline Kit](https://enswhite.onrender.com/sample-kit.html) · [Whitechain feedback](WHITECHAIN_FEEDBACK.md)
 
 Private model mode fails explicitly on an API error; it does not disguise an offline substitute as AI work. Guest sessions execute the same bounded tool interface offline and label that source. New model assignments allow six tool decisions and twelve API attempts; saved legacy and offline runs retain their original eight-tool protocol. A GPT-6 Luna mission passed with simulated settlement using five/two/two decisions for Marketing/Support/Finance. Real-model missions completed with simulated funds and real Whitechain testnet payments on November 7, 2026. The [live-testnet Campaign Kit evidence](docs/TESTNET-RUNTIME-MISSION.md) records all three employee submissions, vendor receipts, recovery behavior and content-review limits.
 

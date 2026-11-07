@@ -8,14 +8,14 @@ Submit to **Whitechain Scale: Payments Nobody Notices** and **Best Use of ENSv2*
 
 ## Links for the showcase
 
-- [Live landing page](https://zoning-playhouse-banister.ngrok-free.dev/)
+- [Hosted landing page and guest demo](https://enswhite.onrender.com/)
 - [Real company onboarding](https://zoning-playhouse-banister.ngrok-free.dev/launch/)
-- [Keyless onchain Live Proof](https://zoning-playhouse-banister.ngrok-free.dev/proof/)
+- [Keyless onchain Live Proof](https://enswhite.onrender.com/proof/)
 - Guest demo: click **Try the guest demo** on the landing page. Guests have isolated simulated funds and offline content; this is labelled separately from the real testnet flow.
 - [Public source](https://github.com/swapnilyt1234/enswhite), [MIT licence](../LICENSE)
 - **Demo video: pending founder recording and public upload.** Follow the [3:15 recording plan](DEMO-VIDEO.md). Do not claim the video requirement is complete until its link is added here and to the showcase.
 
-The live demo currently uses the existing ngrok origin. The operator's machine, company/vendor processes, public gateway and tunnel must remain online. This is a working operator-hosted testnet deployment, not permanent managed hosting.
+The guest demo and read-only Live Proof run on Render without the operator's machine; a free instance can take about a minute to wake. Real company onboarding, checkout and signing remain on the separate ngrok origin and require the operator's machine and services to stay online.
 
 ## Whitechain Scale requirements
 
