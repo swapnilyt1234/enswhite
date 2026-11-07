@@ -1,3 +1,5 @@
+import {readPaymentStatus} from './payment-status.js';
+import {createDirectoryView} from './directory-view.js';
 import {normalizeLandingSection} from './landing-section.js';
 import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import {existsSync,readFileSync} from 'node:fs';
@@ -76,6 +78,7 @@ export async function createCompany({ env = process.env, directory = resolve(env
     db.exec('CREATE TABLE IF NOT EXISTS company_reviews(id TEXT PRIMARY KEY,kind TEXT NOT NULL,mission TEXT NOT NULL,target TEXT NOT NULL,department TEXT NOT NULL,score INTEGER NOT NULL,comment TEXT NOT NULL,created_at TEXT NOT NULL)');
     const ensWriter=directoryENS?createENSWriter(db,directoryENS,getWallet,event=>activity.record(event.label==='founder-reviewer'?'company':event.label,event.key==='erc8004.feedback'?'review_confirmed':event.key==='enswhite.status'?'ens_status':'budget_updated',event.key==='erc8004.feedback'?'My ERC-8004 review is confirmed.':event.key==='enswhite.status'?`My ENS status is now ${event.value}.`:`Finance updated my ENS weekly budget to ${formatUnits(event.value,6)} test USDT.`,{data:{hash:event.hash,network:'sepolia',value:event.value},key:`ens:${event.hash}`})):null;
     db.prepare('INSERT OR IGNORE INTO settings VALUES(?,?)').run('company_config', fingerprint);
+    const directoryView=createDirectoryView(directoryENS);
     let running;
     const jobs = () => db.prepare('SELECT id,kind,state,hash,error,created_at FROM company_jobs ORDER BY created_at DESC').all();
     const enqueue = (id, kind, data) => db.prepare("INSERT OR IGNORE INTO company_jobs(id,kind,data,state,created_at) VALUES(?,?,?,'queued',?)").run(id, kind, JSON.stringify(data), now());
@@ -140,6 +143,7 @@ export async function createCompany({ env = process.env, directory = resolve(env
       async allocationNeeds(missionId){const ledger=await service.agentLedger(missionId),needs={marketing:'0',support:'0',finance:'0'};for(const dept of ledger.team){const demand=vendors.filter(v=>v.dept===dept.id&&!db.prepare('SELECT id FROM company_tasks WHERE mission_id=? AND vendor=?').get(missionId,v.id)).reduce((n,v)=>n+BigInt(v.price),0n);needs[dept.id]=String(demand>BigInt(dept.available)?demand-BigInt(dept.available):0n)}return needs},
       async agentContext(run){const row=db.prepare('SELECT title FROM company_missions WHERE id=?').get(run.mission_id),snapshot=db.prepare('SELECT profile FROM company_profiles WHERE mission_id=?').get(run.mission_id);return{mission:row?.title||'Recommend startup funds for the registered campaign services',business:snapshot?JSON.parse(snapshot.profile):businessProfile(),hiredDepartments:departments.map(x=>x.id),employee:await service.assertEmployee(run.department),purpose:run.purpose,source:run.source,memory:agentStore.memory(run.department),allocationNeeds:run.department==='finance'?await service.allocationNeeds(run.mission_id):null,work:db.prepare('SELECT id,dept,vendor,state,result FROM company_tasks WHERE mission_id=?').all(run.mission_id).map(x=>({...x,result:x.result?JSON.parse(x.result):null})),messages:agentStore.messages(run.mission_id).filter(x=>x.kind!=='model_output').slice(-10)}},
       answerFounder(id,answer){if(typeof answer!=='string'||!answer.trim()||answer.length>1500)throw fail('Answer must contain 1–1500 characters');const row=db.prepare('SELECT * FROM founder_questions WHERE id=?').get(id);if(!row)throw fail('Question not found',404);if(row.answer&&row.answer!==answer)throw fail('This question was already answered',409);db.prepare('UPDATE founder_questions SET answer=? WHERE id=?').run(answer,id);activity.record('company','founder_answer','The founder answered an employee question.',{data:{questionId:id}});return{id}},
+      paymentStatus:()=>readPaymentStatus(db,chain.address,mode==='testnet'?EXPLORER:null),
       attention(){return{
         questions:db.prepare('SELECT id,run_id,question,answer FROM founder_questions WHERE answer IS NULL ORDER BY created_at').all(),
         paused:agentStore.runs().filter(x=>x.state==='failed'),
@@ -158,18 +162,19 @@ export async function createCompany({ env = process.env, directory = resolve(env
         return { user: { id: 'founder' }, token: created };
       },
       async state() {
-        const snapshot = await chain.snapshot(), ledger = await receipts();
-        const team = [];
-        for (const dept of departments) {
+        const [snapshot,ledger]=await Promise.all([chain.snapshot(),receipts()]);
+        const team = await Promise.all(departments.map(async dept=>{
           const own = ledger.filter(row => row.dept.toLowerCase() === dept.address.toLowerCase());
           const runs=agentStore.runs().filter(x=>x.department===dept.id),currentRun=runs.find(x=>['queued','thinking','executing','waiting','recovering'].includes(x.state))||runs[0]||null;
-          team.push({ ...dept, capabilities:EMPLOYEES[dept.id].capabilities,currentRun,wbtBalance:chain.provider?String(await chain.provider.getBalance(dept.address)):null,weekly:simulatedWeekly(dept), balance: String(await chain.balance(dept.address)), remaining: String(await remaining(dept)), spent: own.reduce((sum, row) => sum + BigInt(row.amount), 0n).toString(), lastPurchase: own.at(-1) ?? null });
-        }
-        const organization = directoryENS ? await directoryENS.organization() : [];
+          const [balance,wbt]=await Promise.all([chain.balance(dept.address),chain.provider?chain.provider.getBalance(dept.address).catch(()=>null):null]);
+          const reserved=db.prepare("SELECT amount FROM company_tasks WHERE dept=? AND state IN ('approval','queued','submitted')").all(dept.id).reduce((sum,row)=>sum+BigInt(row.amount),0n);
+          return{...dept,capabilities:EMPLOYEES[dept.id].capabilities,currentRun,wbtBalance:wbt===null?null:String(wbt),weekly:simulatedWeekly(dept),balance:String(balance),remaining:String(BigInt(balance)-reserved),spent:own.reduce((sum,row)=>sum+BigInt(row.amount),0n).toString(),lastPurchase:own.at(-1)??null};
+        }));
+        const directory=directoryView(),organization=directory.organization;
         for(const dept of team){const identity=organization.find(row=>row.wallet.toLowerCase()===dept.address.toLowerCase());dept.identity=identity??null;dept.ensName=identity?.name??(directoryENS?`${dept.id}.${directoryENS.companyName}`:null);if(identity){dept.weekly=identity.weekly;dept.perCall=identity.perCall;}}
-        const branding=directoryENS?await directoryENS.branding().catch(()=>null):null;
+        const branding=directory.branding;
         const latest=db.prepare('SELECT id,source FROM company_missions ORDER BY created_at DESC,rowid DESC LIMIT 1').get();
-        return { brand: 'EnsWhite', ens: { enabled: !!directoryENS, organization, companyName:directoryENS?.companyName, branding, writes:ensWriter?.jobs()??[] }, mode, paymentMode: gateway.mode, scheme: COMPANY_SCHEME, company: chain.address, network: NETWORK, token: TOKEN,
+        return { brand: 'EnsWhite', ens: { enabled: !!directoryENS, directoryStatus:directory.status, checkedAt:directory.checkedAt, organization, companyName:directoryENS?.companyName, branding, writes:ensWriter?.jobs()??[] }, mode, paymentMode: gateway.mode, scheme: COMPANY_SCHEME, company: chain.address, network: NETWORK, token: TOKEN,
           ...snapshot, team, vendors: vendors.map(v => ({ ...v, earningsUrl: `/api/vendors/${v.id}/earnings` })),
           tasks: db.prepare('SELECT * FROM company_tasks ORDER BY created_at DESC').all().map(row => ({ ...row, result: row.result ? JSON.parse(row.result) : null })),
           reviews:ensWriter?db.prepare('SELECT r.*,w.state,w.hash,w.error FROM company_reviews r LEFT JOIN ens_writes w ON w.id=r.id ORDER BY r.rowid DESC').all():db.prepare('SELECT *,\'simulated\' AS state FROM company_reviews').all(),business:businessProfile(),

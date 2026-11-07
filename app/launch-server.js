@@ -1,3 +1,6 @@
+import {DatabaseSync} from 'node:sqlite';
+import {readPaymentStatus} from './payment-status.js';
+import {EXPLORER} from './chain.js';
 import express from 'express';
 import {readFile} from 'node:fs/promises';
 import {join,resolve} from 'node:path';
@@ -30,6 +33,12 @@ export function createLaunchGateway(origin,{store=createLaunchStore(),companyFac
  app.use('/company',async(req,res,next)=>{
   try{
    const job=cookie(req)&&store.job(cookie(req));if(!job)return res.status(401).json({error:'Start your company at /launch/'});
+   if(req.method==='GET'&&req.path==='/api/payment-status'){
+    if(job.state!=='ready')return res.status(409).json({error:'Company setup is not complete'});
+    const row=store.db.prepare('SELECT config FROM launches WHERE id=?').get(job.id),config=JSON.parse(await readFile(row.config,'utf8'));
+    const db=new DatabaseSync(join(config.COMPANY_DATA_DIR,'payments.sqlite'),{readOnly:true});
+    try{return res.set('Cache-Control','no-store').json(readPaymentStatus(db,config.RELAY_COMPANY_ADDRESS,EXPLORER))}finally{db.close()}
+   }
    const entry=await workspace(job),name='relay_company'+(new URL(origin).port?'_'+new URL(origin).port:'');
    // The visitor cookie selects one workspace; its internal founder session never leaves this process.
    req.headers.cookie=(req.headers.cookie||'').split(';').filter(x=>!x.trim().startsWith(name+'=')).join(';')+`; ${name}=${entry.token}`;

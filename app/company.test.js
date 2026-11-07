@@ -41,6 +41,14 @@ test('founder attention stays available without live RPC and answering clears th
  assert.throws(()=>company.answerFounder('question-1','Change the previous answer'),/already answered/);
 });
 
+test('confirmed top-up balances load while ENS is stuck and saved receipts remain available even if Whitechain reads fail',async t=>{
+ let company;const directory={companyName:'test.enswhite.eth',provider:{},close(){},organization:()=>new Promise(()=>{}),branding:async()=>null,employee:async()=>{throw new Error('Employee is fired or expired')}};
+ ({company}=await setup(t,{ensDirectory:directory}));const order=await fund(company);let state=await company.state();assert.equal(state.companyBalance,'5000000');assert.equal(state.ens.directoryStatus,'loading');
+ await assert.rejects(company.assertEmployee('marketing'),/fired or expired/,'Fresh signing authorization must not use display data');
+ await company.simulate(order.id);await company.processJobs();assert.equal((await company.state()).companyBalance,'5000000','Retrying the same checkout cannot add a second credit');
+ company.chain.snapshot=async()=>{throw Object.assign(new Error('RPC timeout'),{code:'TIMEOUT'})};const receipt=company.paymentStatus().payments[0];assert.equal(receipt.orderId,order.id);assert.equal(receipt.state,'confirmed');assert.equal(receipt.units,'5000000');assert.equal(company.db.prepare("SELECT COUNT(*) n FROM company_jobs WHERE kind='topup'").get().n,1);
+});
+
 test('a repeated mission submit with a fresh browser key reuses the active brief for sixty seconds',async t=>{
  const {company}=await setup(t);const first=await company.mission('Launch the candle collection','mission-submit-first'),second=await company.mission('Launch the candle collection','mission-submit-second');
  assert.equal(second.id,first.id);assert.equal(second.reused,true);assert.equal(company.db.prepare('SELECT COUNT(*) n FROM company_missions').get().n,1);assert.equal(company.agentStore.runs().length,3);

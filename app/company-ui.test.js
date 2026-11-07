@@ -19,7 +19,7 @@ test('automatic UI recovery stops after its bound and never retries a policy ref
 function sliceFunctions(start,end){return source.slice(source.indexOf(start),source.indexOf(end))}
 function controlsFixture(){
  const buttons=Object.fromEntries(['topup','fund-topup','allocate','propose-finance','run-mission','employment','navigation'].map(id=>[id,{disabled:id==='employment',isConnected:true}]));
- const context=vm.createContext({state:{topup:{canCheckout:false},allocationProposal:null,companyBalance:'0',agentRuns:[],team:[]},busy:false,stateRevision:0,refreshPending:null,pendingFinance:null,pendingTopup:null,$:id=>buttons[id],document:{body:{setAttribute(){},removeAttribute(){}},querySelectorAll:()=>Object.values(buttons)},refreshAttention:async()=>{},refresh:()=>new Promise(()=>{}),refreshFailed(){},status(){},founderError:e=>e.message});
+ const context=vm.createContext({state:{topup:{canCheckout:false},allocationProposal:null,companyBalance:'0',agentRuns:[],team:[]},busy:false,stateRevision:0,refreshPending:null,pendingFinance:null,pendingTopup:null,$:id=>buttons[id],document:{body:{setAttribute(){},removeAttribute(){}},querySelectorAll:()=>Object.values(buttons)},refreshAttention:async()=>{},refreshPaymentStatus:async()=>{},refresh:()=>new Promise(()=>{}),refreshFailed(){},status(){},founderError:e=>e.message});
  vm.runInContext(sliceFunctions('function syncControls()',"$('propose-finance').addEventListener"),context);return{buttons,context};
 }
 test('action feedback returns without waiting for chain refresh and preserves unavailable controls',async()=>{
@@ -69,4 +69,13 @@ test('a successful checkout stays disabled until its exact saved credit confirms
  const {buttons,context}=controlsFixture();context.state.topup.canCheckout=true;context.pendingTopup='order_saved';context.syncControls();assert.equal(buttons.topup.disabled,true);assert.equal(buttons['fund-topup'].disabled,true);
  context.state.jobs=[{id:'credit:another-order',state:'confirmed'}];context.syncControls();assert.equal(buttons.topup.disabled,true);
  const cleared=[];context.sessionStorage={removeItem:key=>cleared.push(key)};context.state.company='company';context.state.jobs.push({id:'credit:order_saved',state:'confirmed'});context.syncControls();assert.equal(buttons.topup.disabled,false);assert.equal(context.pendingTopup,null);assert.deepEqual(cleared,['enswhiteCheckout:company']);
+});
+
+
+test('saved payment confirmation remains visible without the main state response and never guesses the remaining cash',()=>{
+ const panel={hidden:true},cash={textContent:'0'},nodes={'payment-status':panel,cash};
+ const context=vm.createContext({paymentPanel:panel,state:undefined,refreshError:true,$:id=>nodes[id],esc:String,money:value=>'INR '+Number(value)/10000,sessionStorage:{getItem:()=>null},renderPanel:(id,revision,html)=>{nodes[id].innerHTML=html}});
+ vm.runInContext(sliceFunctions('function renderPaymentStatus(','function renderAttention('),context);
+ context.renderPaymentStatus({company:'company',explorer:'https://explorer.testnet.whitechain.io',payments:[{orderId:'saved',state:'confirmed',units:'5000000',hash:'0x'+'1'.repeat(64)}]});assert.equal(panel.hidden,false);assert.match(panel.innerHTML,/INR 500 credited/);assert.match(panel.innerHTML,/View payment receipt/);assert.equal(cash.textContent,'Updating…');
+ context.renderPaymentStatus({payments:[{orderId:'saved',state:'queued',units:'5000000'}]});assert.match(panel.innerHTML,/awaiting settlement/);assert(!panel.innerHTML.includes('credited to your company'));
 });

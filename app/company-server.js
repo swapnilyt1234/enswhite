@@ -17,6 +17,7 @@ export function createCompanyApp(company, origin, { guest = false } = {}) {
   sessionRoutes(app, company, origin, { login: !guest, guest });
   let stateRead;
   app.get('/api/state', async (req, res) => {stateRead??=Promise.resolve().then(()=>company.state()).finally(()=>{stateRead=null});res.json(await stateRead)});
+  app.get('/api/payment-status',(req,res)=>res.json(company.paymentStatus()));
   app.get('/api/attention',(req,res)=>res.json(company.attention()));
   app.get('/api/agent-runs',(req,res)=>res.json(company.agentStore.runs()));
   app.get('/api/agent-runs/:id',(req,res)=>res.json(company.agentHistory(req.params.id)));

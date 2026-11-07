@@ -6,6 +6,7 @@ let state, busy = false, images = [], checkoutScript, refreshError=false, busine
 const routePrefix=location.pathname.startsWith('/guest/')?'/guest':location.pathname.startsWith('/owner/')?'/owner':location.pathname.startsWith('/company/')?'/company':'';
 let selectedAgent='all',activityStream;const workEvents=new Map();
 const attentionPanel=document.createElement('section');attentionPanel.id='founder-questions';attentionPanel.setAttribute('aria-label','Needs your attention');$('pool-warning').after(attentionPanel);$('pool-warning').before($('status'));
+const paymentPanel=document.createElement('section');paymentPanel.id='payment-status';paymentPanel.className='recent-panel';paymentPanel.hidden=true;paymentPanel.setAttribute('aria-label','Payment confirmation');paymentPanel.setAttribute('aria-live','polite');$('pool-warning').after(paymentPanel);
 const deskLink=document.createElement('a');deskLink.href='#desk';deskLink.dataset.view='desk';deskLink.className='nav-link';deskLink.innerHTML='<span aria-hidden="true">◉</span>Agent Desk';document.querySelector('nav').append(deskLink);
 const businessForm=document.createElement('form');businessForm.className='business-form recent-panel';businessForm.innerHTML='<h2>Your business</h2><p class="micro">Give your employees the context they need. This profile guides future missions; it does not change ENS ownership or payment permissions.</p><label>Business name<input name="name" maxlength="80" required></label><label>What do you sell?<textarea name="description" maxlength="600" required></textarea></label><label>Who is it for?<input name="audience" maxlength="180" required></label><label>Customer help language<select name="language"><option>Hindi</option><option>Marathi</option></select></label><button class="btn outline" type="submit">Save business profile →</button>';
 $('view-team').append(businessForm);businessForm.querySelector('button').disabled=true;
@@ -83,6 +84,20 @@ function renderPanel(id,revision,html){
  panel.innerHTML=html;panel.dataset.revision=revision;
  for(const form of panel.querySelectorAll('form'))for(const [name,value]of drafts.get(key(form))||[]){const input=form.elements.namedItem(name);if(input)input.value=value}
 }
+function renderPaymentStatus(data){
+ if(!state&&data.businessName){document.querySelector('.workspace-switch strong').textContent=data.businessName;document.querySelector('.breadcrumb').firstChild.textContent=data.businessName+' ';}
+ const payment=data.payments?.[0],confirmed=payment?.state==='confirmed',pending=payment&&['queued','submitted'].includes(payment.state);
+ paymentPanel.hidden=!confirmed&&!pending;
+ if(!confirmed&&!pending)return;
+ const receipt=confirmed&&data.explorer&&/^0x[0-9a-f]{64}$/i.test(payment.hash||'')?`<a target="_blank" rel="noreferrer" href="${esc(data.explorer)}/tx/${payment.hash}">View payment receipt ↗</a>`:'';
+ const text=confirmed?`${money(payment.units)} credited to your company.`:'Your verified test payment is awaiting settlement. You do not need to pay again.';
+ const note=confirmed&&(!state||refreshError)?'Payment confirmation is saved. The account display is reconnecting.':'';
+ renderPanel('payment-status',JSON.stringify({payment,note}),`<p><strong>${esc(text)}</strong></p>${note?`<p class="micro">${esc(note)}</p>`:''}${receipt}`);
+ if(confirmed){
+  const key='enswhiteCheckout:'+data.company;if(sessionStorage.getItem(key)===payment.orderId)sessionStorage.removeItem(key);
+  if(!state||!(state.jobs||[]).some(job=>job.id==='credit:'+payment.orderId&&job.state==='confirmed'))$('cash').textContent='Updating…';
+ }
+}
 function renderAttention(data){
  const questions=data.questions||[],approvals=data.approvals||[],recovering=data.recovering||[],paused=(data.paused||[]).filter(r=>r.purpose==='mission');
  const count=questions.length+approvals.length+paused.length+recovering.length;
@@ -93,6 +108,8 @@ function renderAttention(data){
  renderPanel('founder-questions',JSON.stringify(data),questionHTML+approvalHTML+pausedHTML+recovering.map(r=>`<article class="recent-panel" role="status"><p class="eyebrow">RECONNECTING AUTOMATICALLY · ${esc(r.department)}</p><p>Your saved assignment will resume after the connection recovers. No repeat checkout, proposal or mission is needed.</p></article>`).join(''));
  const work=document.querySelector('[data-view="desk"]');work.setAttribute('aria-label',count?`Work · ${count} need your attention`:'Work');
 }
+let paymentStatusPending;
+function refreshPaymentStatus(){return paymentStatusPending??=api('/payment-status').then(renderPaymentStatus).finally(()=>{paymentStatusPending=null})}
 let attentionPending;
 function refreshAttention(){return attentionPending??=api('/attention').then(renderAttention).finally(()=>{attentionPending=null})}
 function renderWorkforce(){
@@ -122,15 +139,16 @@ function renderTeam() {
   $('team-cards').innerHTML=state.team.map(dept=>{
     const percent=Number(dept.weekly)>0?Math.min(100,Math.max(0,Number(dept.spent)/Number(dept.weekly)*100)):0;
     const last=dept.lastPurchase, vendor=last&&state.vendors.find(v=>v.address.toLowerCase()===last.vendor.toLowerCase());
-    return `<article class="team-card"><div class="agent-heading"><span class="agent-icon ${dept.id}" aria-hidden="true">${icons[dept.id]}</span><span class="agent-tag">${dept.id==='finance'?'KEEPING THE BOOKS':'READY TO WORK'}</span></div><h3>${dept.name}</h3><p class="description">${esc(dept.title)}</p><p class="micro">${esc(runStatus(dept))}</p><span class="card-balance-label">AVAILABLE BUDGET</span><div class="card-balance"><strong>${money(Math.max(0,Number(dept.remaining)))}</strong><span>/ ${money(dept.weekly)} weekly</span></div><div class="budget-track"><span style="width:${percent}%"></span></div><div class="budget-caption"><span>${money(dept.spent)} spent</span><span>${percent.toFixed(0)}% of weekly cap</span></div><div class="card-policy"><span>Per call <strong>${money(dept.perCall)}</strong></span><span>Ask above <strong>${money(dept.approval)}</strong></span></div><p class="last-purchase">LAST PURCHASE<b>${last?esc(vendor?.name||'Vendor')+' · '+money(last.amount):dept.id==='finance'?'Signed allocation proposals. Watching the ledger.':'The first receipt is waiting to happen.'}</b></p><code class="onchain">${dept.address}<br>${dept.wbtBalance===null?'Simulated WBT':(Number(dept.wbtBalance)/1e18).toFixed(6)+' WBT'} · USDT ${Number(dept.balance)/1e6}</code></article>`;
+    return `<article class="team-card"><div class="agent-heading"><span class="agent-icon ${dept.id}" aria-hidden="true">${icons[dept.id]}</span><span class="agent-tag">${dept.id==='finance'?'KEEPING THE BOOKS':'READY TO WORK'}</span></div><h3>${dept.name}</h3><p class="description">${esc(dept.title)}</p><p class="micro">${esc(runStatus(dept))}</p><span class="card-balance-label">AVAILABLE BUDGET</span><div class="card-balance"><strong>${money(Math.max(0,Number(dept.remaining)))}</strong><span>/ ${money(dept.weekly)} weekly</span></div><div class="budget-track"><span style="width:${percent}%"></span></div><div class="budget-caption"><span>${money(dept.spent)} spent</span><span>${percent.toFixed(0)}% of weekly cap</span></div><div class="card-policy"><span>Per call <strong>${money(dept.perCall)}</strong></span><span>Ask above <strong>${money(dept.approval)}</strong></span></div><p class="last-purchase">LAST PURCHASE<b>${last?esc(vendor?.name||'Vendor')+' · '+money(last.amount):dept.id==='finance'?'Signed allocation proposals. Watching the ledger.':'The first receipt is waiting to happen.'}</b></p><code class="onchain">${dept.address}<br>${dept.wbtBalance===null?(state.mode==='simulated'?'Simulated WBT':'Gas balance unavailable'):(Number(dept.wbtBalance)/1e18).toFixed(6)+' WBT'} · USDT ${Number(dept.balance)/1e6}</code></article>`;
   }).join('');
   if(state.ens?.enabled){
     $('team-cards').querySelectorAll('.team-card').forEach((card,index)=>{
       const dept=state.team[index],identity=dept.identity;
       const remaining=identity?Math.max(0,Math.floor(Number(identity.expiry)-Date.now()/1000)):0;
       const panel=document.createElement('div');panel.className='ens-identity';
-      const job=state.employment?.jobs?.find(x=>x.label===dept.id),pending=job&&['queued','submitted'].includes(job.state),disabled=!state.employment?.ready||pending?'disabled':'';
-      panel.innerHTML=`<p class="micro">${pending?'Updating employment…':identity?'Employment ends in '+Math.floor(remaining/86400)+'d '+Math.floor(remaining%86400/3600)+'h '+Math.floor(remaining%3600/60)+'m':'Not currently employed. New work is blocked.'}</p><p class="micro">${state.employment?.ready?'The business covers service costs. No wallet is needed.':'Employee changes are temporarily unavailable. Your existing team can continue working.'}</p><div class="task-actions">${identity?`<button ${disabled} class="btn outline" data-ens-action="renew" data-label="${dept.id}">Renew 30 days</button><button ${disabled} class="btn reject" data-ens-action="fire" data-label="${dept.id}">Fire</button>`:`<button ${disabled} class="btn primary" data-ens-action="hire" data-label="${dept.id}">Hire for 30 days</button>`}</div>${job?.error?'<p class="micro">Employee update paused. The operator can resume the saved request.</p>':''}<a class="text-link onchain" target="_blank" rel="noreferrer" href="https://sepolia.app.ens.domains/${encodeURIComponent(dept.ensName)}">${esc(dept.ensName)} ↗</a><p class="micro onchain">ENS status: ${esc(identity?.status||'Awaiting first update')}</p>`;
+      const identityUnavailable=state.ens.directoryStatus&&state.ens.directoryStatus!=='ready';
+      const job=state.employment?.jobs?.find(x=>x.label===dept.id),pending=job&&['queued','submitted'].includes(job.state),disabled=!state.employment?.ready||pending||identityUnavailable?'disabled':'';
+      panel.innerHTML=`<p class="micro">${pending?'Updating employment…':identityUnavailable?(state.ens.directoryStatus==='unavailable'?'Identity service reconnecting. This does not affect your credited funds.':'Checking employee identity. Your balance remains available.'):identity?'Employment ends in '+Math.floor(remaining/86400)+'d '+Math.floor(remaining%86400/3600)+'h '+Math.floor(remaining%3600/60)+'m':'Not currently employed. New work is blocked.'}</p><p class="micro">${state.employment?.ready?'The business covers service costs. No wallet is needed.':'Employee changes are temporarily unavailable. Your existing team can continue working.'}</p><div class="task-actions">${identity?`<button ${disabled} class="btn outline" data-ens-action="renew" data-label="${dept.id}">Renew 30 days</button><button ${disabled} class="btn reject" data-ens-action="fire" data-label="${dept.id}">Fire</button>`:`<button ${disabled} class="btn primary" data-ens-action="hire" data-label="${dept.id}">Hire for 30 days</button>`}</div>${job?.error?'<p class="micro">Employee update paused. The operator can resume the saved request.</p>':''}<a class="text-link onchain" target="_blank" rel="noreferrer" href="https://sepolia.app.ens.domains/${encodeURIComponent(dept.ensName)}">${esc(dept.ensName)} ↗</a><p class="micro onchain">ENS status: ${esc(identity?.status||'Awaiting first update')}${state.ens.checkedAt?' · Identity last checked '+esc(new Date(state.ens.checkedAt).toLocaleTimeString()):''}</p>`;
       if(identity){const id=document.createElement('details');id.className='employee-id onchain';id.innerHTML=`<summary>Employee ID · non-transferable badge</summary><p><code>Owner: ${esc(identity.wallet)}<br>Token: ${esc(identity.tokenId)}</code></p><p><a href="https://sepolia.etherscan.io/address/${esc(identity.resolver)}" target="_blank" rel="noreferrer">Inspect resolver ↗</a></p><p class="micro">Live scoped roles: ${identity.roles?.status?'employee status ✓':'status unavailable'} · ${identity.roles?.financeBudget?'Finance weekly budget ✓':'Finance scope unavailable'}</p>${identity.hire?`<ol class="hire-steps"><li>${identity.hire.resolverDeployed?'✓':'?'} Resolver deployed</li><li>${identity.hire.badgeMinted?'✓':'?'} Employee badge registered</li><li>${identity.hire.financeRoleGranted?'✓':'?'} Finance role granted</li></ol><a target="_blank" rel="noreferrer" href="https://sepolia.etherscan.io/tx/${esc(identity.hire.hash)}">Hire transaction ↗</a>`:''}<p class="micro">ERC-8004 / ENSIP-25: ${esc(identity.discovery?.binding?.verified?'Verified identity binding':identity.discovery?.binding?.reason||'Not configured')}</p>`;panel.append(id)}
       card.append(panel);
     });
@@ -220,7 +238,7 @@ async function refreshState() {
   // Books and Marketplace UI are deferred; their renderers and backend remain available.
   $('chain-details').textContent=`${state.scheme} · x402 v2 custom scheme · receiveWithAuthorization · ${state.network} · 1% fee`;
   $('company-address').textContent=state.company;$('relayer-address').textContent=state.relayer;
-  $('gas-tank').textContent=state.mode==='simulated'?'Simulated':(Number(state.relayerWbt)/1e18).toFixed(4)+' WBT';
+  $('gas-tank').textContent=state.mode==='simulated'?'Simulated':state.relayerWbt==null?'Unavailable':(Number(state.relayerWbt)/1e18).toFixed(4)+' WBT';
   $('job-errors').classList.add('onchain');$('job-errors').innerHTML=state.jobs.filter(row=>row.error).map(row=>`<div class="job-error">${esc(row.kind)}: ${esc(row.error)}</div>`).join('');
 }
 function syncControls(){
@@ -243,7 +261,7 @@ async function act(action) {
  finally{
   busy=false;document.body.removeAttribute('aria-busy');
   for(const [button,disabled]of buttons)if(button.isConnected)button.disabled=disabled;
-  syncControls();void refreshAttention().catch(()=>{});void Promise.resolve(refreshPending).catch(()=>{}).then(refresh).catch(refreshFailed);
+  syncControls();void refreshPaymentStatus().catch(()=>{});void refreshAttention().catch(()=>{});void Promise.resolve(refreshPending).catch(()=>{}).then(refresh).catch(refreshFailed);
  }
 }
 $('propose-finance').addEventListener('click',()=>act(async()=>{const result=await api('/finance/proposal',{method:'POST'});pendingFinance=result.id+':finance:allocation';status('Finance is preparing your budget proposal. Follow its progress in Work.')}));
@@ -281,8 +299,8 @@ $('topup').addEventListener('click',()=>act(async()=>{
   await checkout();await new Promise(resolve=>{const widget=new window.Razorpay({key:order.keyId,order_id:order.id,amount:order.amount,currency:order.currency,name:'EnsWhite · Test mode',description:'₹500 sandbox top-up → company budget',handler(){pendingTopup=order.id;sessionStorage.setItem('enswhiteCheckout:'+state.company,order.id);status('Test payment received. Your company balance will update automatically.');resolve()},modal:{ondismiss:resolve},theme:{color:'#195740'}});widget.on('payment.failed',()=>{status('Test payment failed. Retry in checkout or close it; no credit has been issued.',true)});widget.open()});
 }));
 $('login-form').addEventListener('submit',async event=>{event.preventDefault();try{await api('/login',{method:'POST',body:JSON.stringify({password:$('password').value})});$('password').value='';await refresh()}catch(error){$('login-error').textContent=founderError(error)}});
-for(const id of ['run-mission','propose-finance','allocate','fund-topup','topup'])$(id).disabled=true;status('Loading your workspace…');go(location.hash.slice(1));void refreshAttention().catch(()=>{});refresh().catch(refreshFailed);
-setInterval(()=>{if(!document.hidden)void refreshAttention().catch(()=>{})},5000);
+for(const id of ['run-mission','propose-finance','allocate','fund-topup','topup'])$(id).disabled=true;status('Loading your workspace…');go(location.hash.slice(1));void refreshPaymentStatus().catch(()=>{});void refreshAttention().catch(()=>{});refresh().catch(refreshFailed);
+setInterval(()=>{if(!document.hidden){void refreshPaymentStatus().catch(()=>{});void refreshAttention().catch(()=>{})}},5000);
 setInterval(()=>{if(!busy&&!document.hidden)refresh().catch(refreshFailed)},6000);
 document.addEventListener('submit',event=>{
  const question=event.target.closest('[data-question]'),review=event.target.closest('[data-review-mission]');if(!question&&!review)return;event.preventDefault();const values=Object.fromEntries(new FormData(event.target));act(async()=>{if(question)await api('/founder-questions/'+question.dataset.question,{method:'POST',body:JSON.stringify(values)});else await api('/reviews/employees',{method:'POST',body:JSON.stringify({...values,score:Number(values.score),mission:review.dataset.reviewMission,department:review.dataset.reviewDepartment})});status(question?'Answer sent. Your employee can resume.':'Review saved; transaction status appears here.');if(question)await refreshAttention()})

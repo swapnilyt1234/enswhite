@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,rmSync,writeFileSync} from 'node:fs';
+import {mkdtempSync,rmSync,writeFileSync,mkdirSync} from 'node:fs';
 import {tmpdir} from 'node:os';
+import {DatabaseSync} from 'node:sqlite';
 import {join} from 'node:path';
 import {createLaunchStore,visitorHash} from './launch-store.js';
 import {createProvisionSender} from './provision-sender.js';
@@ -67,4 +68,19 @@ test('Whitechain deployment fee headroom fits the approved daily budget without 
  const send=createProvisionSender(store.db,()=>{});await send('job','whitechain-company',signer,{data:'0x6000'});assert.equal(signed,1);
  assert(BigInt(store.db.prepare('SELECT fee FROM launch_transactions').get().fee)<30_000_000_000_000_000n);
  await assert.rejects(send('job','ordinary-call',signer,{to:Wallet.createRandom().address,data:'0x6000'}),/per-transaction cap 0.02/);assert.equal(signed,1);
+});
+
+
+test('a fresh visitor can read only its own saved credit even while company/RPC initialization is unavailable',async t=>{
+ const directory=mkdtempSync(join(tmpdir(),'enswhite-payment-view-')),store=createLaunchStore(directory),tokens=[store.visitor(),store.visitor()];
+ for(const [index,token]of tokens.entries()){
+  const label='company-'+index,job=store.create(token,{name:label,description:'Saved receipt fixture',label}),tenant=join(directory,label);mkdirSync(tenant);const db=new DatabaseSync(join(tenant,'payments.sqlite'));
+  db.exec('CREATE TABLE company_orders(id TEXT PRIMARY KEY,amount INTEGER,units TEXT);CREATE TABLE company_jobs(id TEXT PRIMARY KEY,state TEXT,hash TEXT)');
+  db.prepare('INSERT INTO company_orders VALUES(?,?,?)').run('order_'+index,50000,'5000000');db.prepare('INSERT INTO company_jobs VALUES(?,?,?)').run('credit:order_'+index,'confirmed','0x'+String(index+1).repeat(64));db.close();
+  const config=join(directory,label+'.json');writeFileSync(config,JSON.stringify({COMPANY_DATA_DIR:tenant,RELAY_COMPANY_ADDRESS:'0x'+String(index+1).repeat(40),FOUNDER_PASSWORD:'must-stay-private'}));store.db.prepare("UPDATE launches SET state='ready',config=? WHERE id=?").run(config,job.id);
+ }
+ let starts=0;const gateway=createLaunchGateway('http://localhost',{store,companyFactory:async()=>{starts++;throw new Error('RPC unavailable')},appFactory:()=>{throw new Error('must not initialize')}}),app=baseApp('http://localhost');app.use(gateway.app);
+ const server=createServer(app);await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));t.after(async()=>{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));await gateway.close();rmSync(directory,{recursive:true,force:true})});
+ const get=token=>new Promise((resolve,reject)=>{const req=request({hostname:'127.0.0.1',port:server.address().port,path:'/company/api/payment-status',headers:{host:'localhost',...(token?{cookie:'enswhite_launch='+token}:{})}},res=>{let body='';res.on('data',x=>body+=x);res.on('end',()=>resolve({status:res.statusCode,body:JSON.parse(body),cache:res.headers['cache-control']}))});req.on('error',reject);req.end()});
+ assert.equal((await get()).status,401);for(const [index,token]of tokens.entries()){const result=await get(token);assert.equal(result.status,200);assert.equal(result.body.payments[0].orderId,'order_'+index);assert.equal(result.body.payments[0].state,'confirmed');assert.equal(result.cache,'no-store');assert(!JSON.stringify(result.body).includes('must-stay-private'))}assert.equal(starts,0);
 });
