@@ -21,7 +21,7 @@ $('view-desk').prepend(document.querySelector('#view-mission .mission-form'));
 for(const [view,label,number]of [['overview','Launch','01'],['team','Hire','02'],['fund','Fund','03'],['desk','Work','04'],['deliverables','Deliver','05'],['review','Review','06']]){
  let link=document.querySelector(`[data-view="${view}"]`);if(!link){link=document.createElement('a');link.dataset.view=view;link.href='#'+view;link.className='nav-link'}link.innerHTML=`<span aria-hidden="true">${number}</span>${label}`;document.querySelector('nav').append(link);
 }
-for(const view of ['mission','approvals','books','marketplace']){const link=document.querySelector(`[data-view="${view}"]`);if(link)document.querySelector('nav').append(link)}
+for(const view of ['mission','approvals']){const link=document.querySelector(`[data-view="${view}"]`);if(link)document.querySelector('nav').append(link)}
 businessForm.addEventListener('submit',event=>{event.preventDefault();act(async()=>{await api('/business',{method:'POST',body:JSON.stringify(Object.fromEntries(new FormData(businessForm)))});status('Business profile saved. Your next mission will use this context.');await refresh()})});
 let missionKey = sessionStorage.getItem('relayMissionKey'), missionTitle = sessionStorage.getItem('relayMissionTitle');
 const chainPreference = localStorage.getItem('relayShowOnchain') === 'true';
@@ -46,7 +46,7 @@ async function api(path, options = {}) {
   }
 }
 function go(view) {
-  if (!['overview','team','mission','approvals','books','marketplace','desk','deliverables','fund','review'].includes(view)) view='overview';
+  if (!['overview','team','mission','approvals','desk','deliverables','fund','review'].includes(view)) view='overview';
   document.querySelectorAll('.view').forEach(section=>{section.hidden=section.id!=='view-'+view});
   document.querySelectorAll('[data-view]').forEach(link=>link.classList.toggle('active',link.dataset.view===view));
   $('breadcrumb-view').textContent = view[0].toUpperCase()+view.slice(1);
@@ -198,7 +198,8 @@ async function refreshState() {
   else if(!canCheckout){warning.textContent=`New sandbox top-ups require prefunded test USDT at company ${state.company}. Existing company credit and department budgets remain available; another checkout cannot refill the pool.`}
   $('allocate').disabled=busy||BigInt(state.companyBalance)===0n;
   $('run-mission').disabled=busy||!state.team.some(d=>BigInt(d.balance)>0n&&(!state.ens?.enabled||d.identity));
-  renderTeam();renderActivity();renderTasks();renderBooks();renderVendors();renderWorkforce();
+  renderTeam();renderActivity();renderTasks();renderWorkforce();
+  // Books and Marketplace UI are deferred; their renderers and backend remain available.
   $('chain-details').textContent=`${state.scheme} · x402 v2 custom scheme · receiveWithAuthorization · ${state.network} · 1% fee`;
   $('company-address').textContent=state.company;$('relayer-address').textContent=state.relayer;
   $('gas-tank').textContent=state.mode==='simulated'?'Simulated':(Number(state.relayerWbt)/1e18).toFixed(4)+' WBT';
