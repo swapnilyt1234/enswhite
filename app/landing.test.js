@@ -11,6 +11,10 @@ test('landing actions, artwork and policy links are served under the existing CS
  const server=createServer();await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const origin=`http://127.0.0.1:${server.address().port}`,judge=createJudgeApp({origin,proof:{close(){}}});server.on('request',judge.app);
  t.after(async()=>{await judge.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve))});
  for(const path of ['/','/landing.css','/public.js','/privacy.html','/terms.html','/enswhite-press.png','/favicon.svg']){const response=await fetch(origin+path);assert.equal(response.status,200,path);assert.match(response.headers.get('content-security-policy'),/script-src 'self'/);await response.arrayBuffer()}
+ const guestLanding=await (await fetch(origin)).text();
+ assert(!/href="\/(launch|owner)\//.test(guestLanding));
+ assert.match(guestLanding,/href="#enter">Try the guest demo/);
+ assert.equal((await fetch(origin+'/launch/',{redirect:'manual'})).headers.get('location'),'/#enter');
  assert.equal((html.match(/class="feature-card"/g)||[]).length,3);assert.equal((html.match(/class="quote-card"/g)||[]).length,3);assert.equal((html.match(/class="price-card /g)||[]).length,3);assert.equal((html.match(/class="price-card featured"/g)||[]).length,1);
  for(const [,id]of html.matchAll(/href="#([^"]+)"/g))assert(html.includes(`id="${id}"`),`Missing target ${id}`);
  assert.match(html,/Illustrative demo scenarios, not customer testimonials/);assert.match(html,/id="enter"/);assert.match(html,/name="viewport"/);assert.match(html,/property="og:image"/);assert(!/<script[^>]+src="https?:/.test(html));

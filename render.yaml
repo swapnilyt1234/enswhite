@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: enswhite-demo
+    runtime: docker
+    plan: free
+    healthCheckPath: /healthz
+    autoDeployTrigger: off

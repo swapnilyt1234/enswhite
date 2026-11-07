@@ -1,7 +1,7 @@
 import express from 'express';
 import { createServer, request as httpRequest } from 'node:http';
 import { randomBytes } from 'node:crypto';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -53,6 +53,12 @@ export function createJudgeApp({origin,owner=false,proof=createLiveProof(),works
     app.all(/^\/(?:launch|company)(?:\/|$)/,proxy);
     app.get(/^\/owner$/,(req,res)=>res.redirect('/owner/'));
     app.use('/owner',proxy);
+  }else{
+    const landing=readFileSync(join(publicDir,'index.html'),'utf8')
+      .replace(/href="\/launch\/[^"]*">[^<]+/g,'href="#enter">Try the guest demo ')
+      .replace(/<a href="\/owner\/">Founder sign-in<\/a>/g,'');
+    app.get(['/','/index.html'],(req,res)=>res.type('html').send(landing));
+    app.get(/^\/(?:launch|owner)(?:\/|$)/,(req,res)=>res.redirect('/#enter'));
   }
   app.use(express.static(publicDir));
   app.use((error,req,res,next)=>{if(res.headersSent)return next(error);res.status(error.status||500).json({error:'Public demo temporarily unavailable. Please retry.'})});
@@ -61,7 +67,7 @@ export function createJudgeApp({origin,owner=false,proof=createLiveProof(),works
   return {app,async close(){clearInterval(timer);await Promise.all([...sessions.values()].map(dispose));proof.close()}};
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){
-  const port=Number(process.env.PORT||3006),origin=(process.env.APP_ORIGIN||(process.env.RAILWAY_PUBLIC_DOMAIN?'https://'+process.env.RAILWAY_PUBLIC_DOMAIN:`http://localhost:${port}`)).trim(),judge=createJudgeApp({origin,owner:process.env.OWNER_PROXY==='true'});
+  const port=Number(process.env.PORT||3006),domain=process.env.RENDER_EXTERNAL_HOSTNAME||process.env.RAILWAY_PUBLIC_DOMAIN,origin=(process.env.APP_ORIGIN||(domain?'https://'+domain:`http://localhost:${port}`)).trim(),judge=createJudgeApp({origin,owner:process.env.OWNER_PROXY==='true'});
   const server=judge.app.listen(port,process.env.PUBLIC_BIND||'127.0.0.1',()=>console.log(`Public demo: ${origin}/guest/ · Live Proof: ${origin}/proof/\nForward the public HTTPS tunnel to port 3006. Founder access: ${origin}/owner/`));
   for(const signal of ['SIGINT','SIGTERM'])process.once(signal,()=>{server.close();void judge.close().finally(()=>server.closeAllConnections())});
 }
